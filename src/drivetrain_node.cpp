@@ -14,7 +14,8 @@
 #include <rio_control_node/Motor_Status.h>
 
 ros::NodeHandle* node;
-ros::Publisher mPub;
+ros::Publisher mMotorControlPublisher;
+ros::Publisher mMotorConfigurationPublisher;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr int LEFT_MASTER_ID = 1;
 static constexpr int LEFT_FOLLOWER1_ID = 2;
@@ -59,7 +60,7 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 		break;
 	}
 
-	mPub.publish(mMotorControlMsg);
+	mMotorControlPublisher.publish(mMotorControlMsg);
 }
 
 void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
@@ -142,8 +143,8 @@ int main(int argc, char **argv)
 
 	node = &n;
 
-	mPub = node->advertise<rio_control_node::Motor_Control>("MotorControl", 1);
-	mPub = node->advertise<rio_control_node::Motor_Configuration>("MotorConfiguration", 1);
+	mMotorControlPublisher = node->advertise<rio_control_node::Motor_Control>("MotorControl", 1);
+	mMotorConfigurationPublisher = node->advertise<rio_control_node::Motor_Configuration>("MotorConfiguration", 1);
 
 
 	ros::Subscriber joystickStatus = node->subscribe("JoystickStatus", 10, joystickStatusCallback);
