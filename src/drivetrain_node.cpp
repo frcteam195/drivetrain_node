@@ -1,4 +1,3 @@
-
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
@@ -31,7 +30,7 @@ int mRobotStatus;
 float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
-
+uint32_t mConfigUpdateCounter;
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -61,6 +60,12 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	}
 
 	mMotorControlPublisher.publish(mMotorControlMsg);
+
+	if (mConfigUpdateCounter++ % 100 == 0)
+	{
+		//Send a config update roughly every 500ms
+		mMotorConfigurationPublisher.publish(mMotorConfigurationMsg);
+	}
 }
 
 void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
