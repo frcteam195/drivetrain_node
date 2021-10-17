@@ -123,6 +123,57 @@ void initMotorConfig()
 	mLeftMaster = &mMotorControlMsg.motors[0];
 	mRightMaster = &mMotorControlMsg.motors[1];
 
+	mMotorControlPublisher.publish(mMotorControlMsg);
+
+	rio_control_node::Motor_Config leftMasterMotorConfig;
+	leftMasterMotorConfig.id = LEFT_MASTER_ID;
+	leftMasterMotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	leftMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
+	leftMasterMotorConfig.invert_type = rio_control_node::Motor_Config::NONE;
+	leftMasterMotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(leftMasterMotorConfig);
+
+	rio_control_node::Motor_Config rightMasterMotorConfig;
+	rightMasterMotorConfig.id = RIGHT_MASTER_ID;
+	rightMasterMotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	rightMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
+	rightMasterMotorConfig.invert_type = rio_control_node::Motor_Config::NONE;
+	rightMasterMotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(rightMasterMotorConfig);
+
+	rio_control_node::Motor_Config leftFollower1MotorConfig;
+	leftFollower1MotorConfig.id = LEFT_FOLLOWER1_ID;
+	leftFollower1MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	leftFollower1MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
+	leftFollower1MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
+	leftFollower1MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(leftFollower1MotorConfig);
+
+	rio_control_node::Motor_Config leftFollower2MotorConfig;
+	leftFollower2MotorConfig.id = LEFT_FOLLOWER2_ID;
+	leftFollower2MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	leftFollower2MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
+	leftFollower2MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
+	leftFollower2MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(leftFollower2MotorConfig);
+
+	rio_control_node::Motor_Config rightFollower1MotorConfig;
+	rightFollower1MotorConfig.id = LEFT_FOLLOWER1_ID;
+	rightFollower1MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	rightFollower1MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
+	rightFollower1MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
+	rightFollower1MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(rightFollower1MotorConfig);
+
+	rio_control_node::Motor_Config rightFollower2MotorConfig;
+	rightFollower2MotorConfig.id = LEFT_FOLLOWER2_ID;
+	rightFollower2MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	rightFollower2MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
+	rightFollower2MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
+	rightFollower2MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	mMotorConfigurationMsg.motors.push_back(rightFollower2MotorConfig);
+
+	mMotorConfigurationPublisher.publish(mMotorConfigurationMsg);
 }
 
 int main(int argc, char **argv)
