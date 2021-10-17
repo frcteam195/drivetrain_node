@@ -15,6 +15,7 @@
 ros::NodeHandle* node;
 ros::Publisher mMotorControlPublisher;
 ros::Publisher mMotorConfigurationPublisher;
+static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr int LEFT_MASTER_ID = 1;
 static constexpr int LEFT_FOLLOWER1_ID = 2;
@@ -31,6 +32,23 @@ float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
+
+template <typename T>
+inline int signum(T val)
+{
+	return (T(0) < val) - (val < T(0));
+}
+
+float normalizeJoystickWithDeadband(float val, float deadband) {
+	val = (std::abs(val) > std::abs(deadband)) ? val : 0.0;
+
+	if (val != 0)
+	{
+		val = signum(val) * ((std::abs(val) - deadband) / (1.0 - deadband));
+	}
+
+	return (std::abs(val) > std::abs(deadband)) ? val : 0.0;
+}
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -75,8 +93,8 @@ void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
 	{
 		if (msg.joysticks[DRIVE_JOYSTICK].axes.size() > 1)
 		{
-			mJoystick1x = msg.joysticks[DRIVE_JOYSTICK].axes[0];
-			mJoystick1y = -msg.joysticks[DRIVE_JOYSTICK].axes[1];
+			mJoystick1x = normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[0], kJoystickDeadband);
+			mJoystick1y = -normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[1], kJoystickDeadband);
 		}
 	}
 }
@@ -142,7 +160,7 @@ void initMotorConfig()
 	rightMasterMotorConfig.id = RIGHT_MASTER_ID;
 	rightMasterMotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
 	rightMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
-	rightMasterMotorConfig.invert_type = rio_control_node::Motor_Config::NONE;
+	rightMasterMotorConfig.invert_type = rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT;
 	rightMasterMotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
 	mMotorConfigurationMsg.motors.push_back(rightMasterMotorConfig);
 
@@ -163,7 +181,7 @@ void initMotorConfig()
 	mMotorConfigurationMsg.motors.push_back(leftFollower2MotorConfig);
 
 	rio_control_node::Motor_Config rightFollower1MotorConfig;
-	rightFollower1MotorConfig.id = LEFT_FOLLOWER1_ID;
+	rightFollower1MotorConfig.id = RIGHT_FOLLOWER1_ID;
 	rightFollower1MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
 	rightFollower1MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
 	rightFollower1MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
@@ -171,7 +189,7 @@ void initMotorConfig()
 	mMotorConfigurationMsg.motors.push_back(rightFollower1MotorConfig);
 
 	rio_control_node::Motor_Config rightFollower2MotorConfig;
-	rightFollower2MotorConfig.id = LEFT_FOLLOWER2_ID;
+	rightFollower2MotorConfig.id = RIGHT_FOLLOWER2_ID;
 	rightFollower2MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
 	rightFollower2MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
 	rightFollower2MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
