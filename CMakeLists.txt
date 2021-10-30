@@ -210,7 +210,4 @@ find_package(Threads REQUIRED)
 
 add_executable(drivetrain_node src/drivetrain_node.cpp)
 target_link_libraries(drivetrain_node ${catkin_LIBRARIES})
-target_link_libraries(drivetrain_node ${CMAKE_SOURCE_DIR}/../../../third_party_libs/CKROSlibzmq/build/lib/libzmq.a)
-target_link_libraries(drivetrain_node ${CMAKE_SOURCE_DIR}/../../../third_party_libs/ROSProtoDef2022/out/RobotComms.a)
-target_link_libraries(drivetrain_node ${CMAKE_SOURCE_DIR}/../../../third_party_libs/CKROSprotobuf/build/libprotobuf.a)
 target_link_libraries(drivetrain_node Threads::Threads)
