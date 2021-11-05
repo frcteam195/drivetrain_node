@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(drivetrain_node)
+set(PROJECT_NAME "drivetrain_node")
+project(${PROJECT_NAME})
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -7,7 +8,7 @@ project(drivetrain_node)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp message_generation rio_control_node)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -103,6 +104,7 @@ catkin_package(
 #  LIBRARIES rio_control_node
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
+  CATKIN_DEPENDS roscpp message_generation message_runtime rio_control_node
 )
 
 ###########
@@ -211,3 +213,4 @@ find_package(Threads REQUIRED)
 add_executable(drivetrain_node src/drivetrain_node.cpp)
 target_link_libraries(drivetrain_node ${catkin_LIBRARIES})
 target_link_libraries(drivetrain_node Threads::Threads)
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
