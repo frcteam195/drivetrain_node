@@ -6,6 +6,7 @@
 #include <map>
 #include <mutex>
 
+#include <nav_msgs/Odometry.h>
 #include <rio_control_node/Joystick_Status.h>
 #include <rio_control_node/Robot_Status.h>
 #include <rio_control_node/Motor_Control.h>
@@ -23,6 +24,8 @@ static constexpr int LEFT_FOLLOWER2_ID = 3;
 static constexpr int RIGHT_MASTER_ID = 4;
 static constexpr int RIGHT_FOLLOWER1_ID = 5;
 static constexpr int RIGHT_FOLLOWER2_ID = 6;
+static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
+static constexpr double TRACK_SPACING = 1.0;
 rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
 rio_control_node::Motor* mLeftMaster;
@@ -56,8 +59,58 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 	mRobotStatus = msg.robot_state;
 }
 
+void publishOdometryData(const rio_control_node::Motor_Status& msg)
+{
+	double left_velocity = msg.motors[LEFT_MASTER_ID].sensor_velocity * ENCODER_TICKS_TO_M_S;
+	double right_velocity = msg.motors[RIGHT_MASTER_ID].sensor_velocity * ENCODER_TICKS_TO_M_S;
+
+	double robot_velocity = (left_velocity + right_velocity) / 2.0;
+	double angular_velocity = (right_velocity - left_velocity) / TRACK_SPACING;
+
+	nav_msgs::Odometry odometry_data;
+	odometry_data.header.frame_id = "base_link";
+	odometry_data.child_frame_id = "base_link";
+
+	odometry_data.pose.pose.orientation.w = 0;
+	odometry_data.pose.pose.orientation.x = 0;
+	odometry_data.pose.pose.orientation.y = 0;
+	odometry_data.pose.pose.orientation.z = 0;
+	odometry_data.pose.pose.position.x = 0;
+	odometry_data.pose.pose.position.y = 0;
+	odometry_data.pose.pose.position.z = 0;
+
+	odometry_data.twist.twist.linear.x = robot_velocity;
+	odometry_data.twist.twist.linear.y = 0;
+	odometry_data.twist.twist.linear.z = 0;
+
+	odometry_data.twist.twist.angular.x = 0;
+	odometry_data.twist.twist.angular.y = 0;
+	odometry_data.twist.twist.angular.z = angular_velocity;
+
+	odometry_data.pose.covariance = 
+	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+
+	odometry_data.twist.covariance = 
+	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+
+	static ros::Publisher odometry_publisher = node->advertise<nav_msgs::Odometry>("RobotOdometry", 1);
+	odometry_publisher.publish(odometry_data);
+}
+
 void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 {
+	publishOdometryData(msg);
+
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 
 	switch (mRobotStatus)
