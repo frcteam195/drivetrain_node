@@ -83,7 +83,8 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	double angular_velocity = (right_velocity - left_velocity) / TRACK_SPACING;
 
 	nav_msgs::Odometry odometry_data;
-	odometry_data.header.frame_id = "base_link";
+    odometry_data.header.stamp = ros::Time::now();
+	odometry_data.header.frame_id = "odom";
 	odometry_data.child_frame_id = "base_link";
 
 	odometry_data.pose.pose.orientation.w = 0;
@@ -102,7 +103,7 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	odometry_data.twist.twist.angular.y = 0;
 	odometry_data.twist.twist.angular.z = angular_velocity;
 
-	odometry_data.pose.covariance = 
+	odometry_data.pose.covariance =
 	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -110,7 +111,7 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
 
-	odometry_data.twist.covariance = 
+	odometry_data.twist.covariance =
 	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -118,7 +119,7 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
 
-	static ros::Publisher odometry_publisher = node->advertise<nav_msgs::Odometry>("RobotOdometry", 1);
+	static ros::Publisher odometry_publisher = node->advertise<nav_msgs::Odometry>("/RobotOdometry", 1);
 	odometry_publisher.publish(odometry_data);
 }
 
@@ -132,7 +133,7 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	{
 	case rio_control_node::Robot_Status::AUTONOMOUS:
 	{
-		
+
 	}
 		break;
 	case rio_control_node::Robot_Status::TELEOP:
