@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 #include <mutex>
+#include <iostream>
+#include <iomanip>
 
 #include <nav_msgs/Odometry.h>
 #include <rio_control_node/Joystick_Status.h>
@@ -61,8 +63,21 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 
 void publishOdometryData(const rio_control_node::Motor_Status& msg)
 {
-	double left_velocity = msg.motors[LEFT_MASTER_ID].sensor_velocity * ENCODER_TICKS_TO_M_S;
-	double right_velocity = msg.motors[RIGHT_MASTER_ID].sensor_velocity * ENCODER_TICKS_TO_M_S;
+	double left_velocity = 0;
+	double right_velocity = 0;
+	for(std::vector<rio_control_node::Motor_Info>::const_iterator i = msg.motors.begin();
+	    i != msg.motors.end();
+		i++)
+	{
+		if ( (*i).id == LEFT_MASTER_ID)
+		{
+			left_velocity = (*i).sensor_velocity;
+		}
+		if ( (*i).id == RIGHT_MASTER_ID)
+		{
+			right_velocity = (*i).sensor_velocity;
+		}
+	}
 
 	double robot_velocity = (left_velocity + right_velocity) / 2.0;
 	double angular_velocity = (right_velocity - left_velocity) / TRACK_SPACING;
