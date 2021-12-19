@@ -13,6 +13,7 @@
 #include <rio_control_node/Robot_Status.h>
 #include <rio_control_node/Motor_Control.h>
 #include <rio_control_node/Motor_Configuration.h>
+#include <trajectory_follower_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 
 ros::NodeHandle* node;
@@ -28,6 +29,7 @@ static constexpr int RIGHT_FOLLOWER1_ID = 5;
 static constexpr int RIGHT_FOLLOWER2_ID = 6;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
 static constexpr double TRACK_SPACING = .16;
+static constexpr double KV = 0;
 rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
 rio_control_node::Motor* mLeftMaster;
@@ -37,6 +39,7 @@ float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
+static trajectory_follower_node::TrajectoryFollowCue traj_follow_cue;
 
 template <typename T>
 inline int signum(T val)
@@ -59,6 +62,12 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	mRobotStatus = msg.robot_state;
+}
+
+void trajectoryCueCallback(const trajectory_follower_node::TrajectoryFollowCue& msg)
+{
+	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+    traj_follow_cue = msg;
 }
 
 void publishOdometryData(const rio_control_node::Motor_Status& msg)
@@ -133,12 +142,36 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	{
 	case rio_control_node::Robot_Status::AUTONOMOUS:
 	{
+        if(traj_follow_cue.traj_follow_active)
+        {
+            double angular_velocity = traj_follow_cue.velocity.angular.z;
+            double temp = angular_velocity * TRACK_SPACING;
 
+            double average_velocity = traj_follow_cue.velocity.linear.x;
+            double left_velocity = average_velocity - (temp / 2.0);
+            double right_velocity = average_velocity + (temp / 2.0);
+
+            mLeftMaster->control_mode = mLeftMaster->VELOCITY;
+            mLeftMaster->arbitrary_feedforward = KV * left_velocity;
+            mLeftMaster->output_value = left_velocity;
+            mRightMaster->control_mode = mRightMaster->VELOCITY;
+            mRightMaster->arbitrary_feedforward = KV * right_velocity;
+            mRightMaster->output_value = right_velocity;
+        }
+        else
+        {
+            mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
+            mLeftMaster->output_value = 0;
+            mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
+            mRightMaster->output_value = 0;
+        }
 	}
-		break;
+    break;
 	case rio_control_node::Robot_Status::TELEOP:
 	{
+        mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
 		mLeftMaster->output_value = std::max(std::min(mJoystick1y + mJoystick1x, 1.0f), -1.0f);
+        mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
 		mRightMaster->output_value = std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f);
 	}
 		break;
@@ -293,6 +326,7 @@ int main(int argc, char **argv)
 	ros::Subscriber joystickStatus = node->subscribe("JoystickStatus", 10, joystickStatusCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 10, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 10, robotStatusCallback);
+	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 10, trajectoryCueCallback);
 
 	initMotorConfig();
 
