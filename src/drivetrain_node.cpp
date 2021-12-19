@@ -27,7 +27,7 @@ static constexpr int RIGHT_MASTER_ID = 4;
 static constexpr int RIGHT_FOLLOWER1_ID = 5;
 static constexpr int RIGHT_FOLLOWER2_ID = 6;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
-static constexpr double TRACK_SPACING = 1.0;
+static constexpr double TRACK_SPACING = .16;
 rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
 rio_control_node::Motor* mLeftMaster;
