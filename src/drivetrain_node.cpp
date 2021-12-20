@@ -1,3 +1,5 @@
+#include "drivetrain_node.hpp"
+
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
