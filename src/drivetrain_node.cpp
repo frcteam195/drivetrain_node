@@ -1,3 +1,5 @@
+#include "drivetrain_node.hpp"
+
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
@@ -15,6 +17,9 @@
 #include <rio_control_node/Motor_Configuration.h>
 #include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
+
+#define STR_PARAM(s) #s
+#define CKSP(s) ckgp( STR_PARAM(s) )
 
 ros::NodeHandle* node;
 ros::Publisher mMotorControlPublisher;
@@ -45,6 +50,14 @@ template <typename T>
 inline int signum(T val)
 {
 	return (T(0) < val) - (val < T(0));
+}
+
+static const std::string nodeParamPrefix = "/drivetrain_node/";
+std::string ckgp(std::string instr)
+{
+	std::string retVal = nodeParamPrefix;
+	retVal += instr;
+	return retVal;
 }
 
 float normalizeJoystickWithDeadband(float val, float deadband) {
@@ -318,6 +331,45 @@ int main(int argc, char **argv)
 	ros::NodeHandle n;
 
 	node = &n;
+
+	bool required_params_found = true;
+
+	required_params_found &= n.getParam(CKSP(left_master_id), left_master_id);
+	required_params_found &= n.getParam(CKSP(left_slave_ids), left_slave_ids);
+	required_params_found &= n.getParam(CKSP(left_sensor_inverted), left_sensor_inverted);
+	required_params_found &= n.getParam(CKSP(left_slave_inverted), left_slave_inverted);
+	required_params_found &= n.getParam(CKSP(right_master_id), right_master_id);
+	required_params_found &= n.getParam(CKSP(right_slave_ids), right_slave_ids);
+	required_params_found &= n.getParam(CKSP(right_sensor_inverted), right_sensor_inverted);
+	required_params_found &= n.getParam(CKSP(right_slave_inverted), right_slave_inverted);
+	required_params_found &= n.getParam(CKSP(brake_mode_default), brake_mode_default);
+	required_params_found &= n.getParam(CKSP(gear_ratio_motor_to_output_shaft), gear_ratio_motor_to_output_shaft);
+	required_params_found &= n.getParam(CKSP(wheel_diameter_inches), wheel_diameter_inches);
+	required_params_found &= n.getParam(CKSP(robot_track_width_inches), robot_track_width_inches);
+	required_params_found &= n.getParam(CKSP(robot_linear_inertia), robot_linear_inertia);
+	required_params_found &= n.getParam(CKSP(robot_angular_inertia), robot_angular_inertia);
+	required_params_found &= n.getParam(CKSP(robot_angular_drag), robot_angular_drag);
+	required_params_found &= n.getParam(CKSP(drive_Ks_v_intercept), drive_Ks_v_intercept);
+	required_params_found &= n.getParam(CKSP(drive_Kv), drive_Kv);
+	required_params_found &= n.getParam(CKSP(drive_Ka), drive_Ka);
+	required_params_found &= n.getParam(CKSP(velocity_kP), velocity_kP);
+	required_params_found &= n.getParam(CKSP(velocity_kI), velocity_kI);
+	required_params_found &= n.getParam(CKSP(velocity_kD), velocity_kD);
+	required_params_found &= n.getParam(CKSP(velocity_kF), velocity_kF);
+	required_params_found &= n.getParam(CKSP(velocity_iZone), velocity_iZone);
+	required_params_found &= n.getParam(CKSP(velocity_maxIAccum), velocity_maxIAccum);
+	required_params_found &= n.getParam(CKSP(motion_cruise_velocity), motion_cruise_velocity);
+	required_params_found &= n.getParam(CKSP(motion_accel), motion_accel);
+	required_params_found &= n.getParam(CKSP(motion_s_curve_strength), motion_s_curve_strength);
+	required_params_found &= n.getParam(CKSP(supply_current_limit), supply_current_limit);
+	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold), supply_current_limit_threshold);
+	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold_exceeded_time), supply_current_limit_threshold_exceeded_time);
+
+	if (!required_params_found)
+	{
+		ROS_ERROR("Missing required parameters. Please check the list and make sure all required parameters are included");
+		return 1;
+	}
 
 	mMotorControlPublisher = node->advertise<rio_control_node::Motor_Control>("MotorControl", 1);
 	mMotorConfigurationPublisher = node->advertise<rio_control_node::Motor_Configuration>("MotorConfiguration", 1);
