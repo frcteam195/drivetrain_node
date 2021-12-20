@@ -13,7 +13,7 @@
 #include <rio_control_node/Robot_Status.h>
 #include <rio_control_node/Motor_Control.h>
 #include <rio_control_node/Motor_Configuration.h>
-#include <trajectory_follower_node/TrajectoryFollowCue.h>
+#include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 
 ros::NodeHandle* node;
@@ -39,7 +39,7 @@ float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
-static trajectory_follower_node::TrajectoryFollowCue traj_follow_cue;
+static local_planner_node::TrajectoryFollowCue traj_follow_cue;
 
 template <typename T>
 inline int signum(T val)
@@ -64,7 +64,7 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 	mRobotStatus = msg.robot_state;
 }
 
-void trajectoryCueCallback(const trajectory_follower_node::TrajectoryFollowCue& msg)
+void trajectoryCueCallback(const local_planner_node::TrajectoryFollowCue& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
     traj_follow_cue = msg;

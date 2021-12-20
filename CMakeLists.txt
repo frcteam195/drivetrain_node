@@ -8,7 +8,7 @@ project(${PROJECT_NAME})
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node trajectory_follower_node)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node local_planner_node)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -104,7 +104,7 @@ catkin_package(
 #  LIBRARIES rio_control_node
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
-  CATKIN_DEPENDS roscpp message_generation message_runtime rio_control_node nav_msgs trajectory_follower_node
+  CATKIN_DEPENDS roscpp message_generation message_runtime rio_control_node nav_msgs local_planner_node
 )
 
 ###########
@@ -114,10 +114,6 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
- ${CMAKE_SOURCE_DIR}/../../../third_party_libs/CKROSlibzmq/include
- ${CMAKE_SOURCE_DIR}/../../../third_party_libs/CKROSprotobuf/src
- ${CMAKE_SOURCE_DIR}/../../../third_party_libs/ROSProtoDef2022/out
  ${catkin_INCLUDE_DIRS}
 )
 
