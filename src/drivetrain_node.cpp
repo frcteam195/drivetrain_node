@@ -26,12 +26,6 @@ ros::Publisher mMotorControlPublisher;
 ros::Publisher mMotorConfigurationPublisher;
 static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
-static constexpr int LEFT_MASTER_ID = 1;
-static constexpr int LEFT_FOLLOWER1_ID = 2;
-static constexpr int LEFT_FOLLOWER2_ID = 3;
-static constexpr int RIGHT_MASTER_ID = 4;
-static constexpr int RIGHT_FOLLOWER1_ID = 5;
-static constexpr int RIGHT_FOLLOWER2_ID = 6;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
 static constexpr double TRACK_SPACING = .16;
 static constexpr double KV = 0;
@@ -91,11 +85,11 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	    i != msg.motors.end();
 		i++)
 	{
-		if ( (*i).id == LEFT_MASTER_ID)
+		if ( (*i).id == left_master_id)
 		{
 			left_velocity = (*i).sensor_velocity;
 		}
-		if ( (*i).id == RIGHT_MASTER_ID)
+		if ( (*i).id == right_master_id)
 		{
 			right_velocity = (*i).sensor_velocity;
 		}
@@ -214,103 +208,66 @@ void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
 	}
 }
 
+void configureFollowers(rio_control_node::Motor& master, std::vector<int>& followerIds, std::vector<bool>& followersInverted)
+{
+	for (size_t i = 0; i < followerIds.size(); i++)
+	{
+		rio_control_node::Motor follower;
+		follower.id = followerIds[i];
+		follower.output_value = master.id;
+		follower.controller_type = (int8_t)motor_type;
+		follower.control_mode = rio_control_node::Motor::FOLLOWER;
+		mMotorControlMsg.motors.push_back(follower);
+
+		rio_control_node::Motor_Config followerConfig;
+		followerConfig.id = followerIds[i];
+		followerConfig.controller_type = (int8_t)motor_type;
+		followerConfig.controller_mode = rio_control_node::Motor_Config::FOLLOWER;
+		followerConfig.invert_type = followersInverted[i] ? rio_control_node::Motor_Config::OPPOSE_MASTER : rio_control_node::Motor_Config::FOLLOW_MASTER;
+		followerConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
+		mMotorConfigurationMsg.motors.push_back(followerConfig);
+	}
+}
+
 void initMotorConfig()
 {
 	rio_control_node::Motor leftMaster;
-	leftMaster.id = LEFT_MASTER_ID;
-	leftMaster.controller_type = rio_control_node::Motor::TALON_SRX;
+	leftMaster.id = left_master_id;
+	leftMaster.controller_type = (int8_t)motor_type;
 	leftMaster.output_value = 0;
 	leftMaster.control_mode = rio_control_node::Motor::PERCENT_OUTPUT;
 	mMotorControlMsg.motors.push_back(leftMaster);
 
 	rio_control_node::Motor rightMaster;
-	rightMaster.id = RIGHT_MASTER_ID;
-	rightMaster.controller_type = rio_control_node::Motor::TALON_SRX;
+	rightMaster.id = right_master_id;
+	rightMaster.controller_type = (int8_t)motor_type;
 	rightMaster.output_value = 0;
 	rightMaster.control_mode = rio_control_node::Motor::PERCENT_OUTPUT;
 	mMotorControlMsg.motors.push_back(rightMaster);
 
-	rio_control_node::Motor mLeftFollower1;
-	mLeftFollower1.id = LEFT_FOLLOWER1_ID;
-	mLeftFollower1.output_value = leftMaster.id;
-	mLeftFollower1.controller_type = rio_control_node::Motor::TALON_SRX;
-	mLeftFollower1.control_mode = rio_control_node::Motor::FOLLOWER;
-	mMotorControlMsg.motors.push_back(mLeftFollower1);
-
-	rio_control_node::Motor mLeftFollower2;
-	mLeftFollower2.id = LEFT_FOLLOWER2_ID;
-	mLeftFollower2.output_value = leftMaster.id;
-	mLeftFollower2.controller_type = rio_control_node::Motor::TALON_SRX;
-	mLeftFollower2.control_mode = rio_control_node::Motor::FOLLOWER;
-	mMotorControlMsg.motors.push_back(mLeftFollower2);
-
-	rio_control_node::Motor mRightFollower1;
-	mRightFollower1.id = RIGHT_FOLLOWER1_ID;
-	mRightFollower1.output_value = rightMaster.id;
-	mRightFollower1.controller_type = rio_control_node::Motor::TALON_SRX;
-	mRightFollower1.control_mode = rio_control_node::Motor::FOLLOWER;
-	mMotorControlMsg.motors.push_back(mRightFollower1);
-
-	rio_control_node::Motor mRightFollower2;
-	mRightFollower2.id = RIGHT_FOLLOWER2_ID;
-	mRightFollower2.output_value = rightMaster.id;
-	mRightFollower2.controller_type = rio_control_node::Motor::TALON_SRX;
-	mRightFollower2.control_mode = rio_control_node::Motor::FOLLOWER;
-	mMotorControlMsg.motors.push_back(mRightFollower2);
-
 	mLeftMaster = &mMotorControlMsg.motors[0];
 	mRightMaster = &mMotorControlMsg.motors[1];
 
-	mMotorControlPublisher.publish(mMotorControlMsg);
-
 	rio_control_node::Motor_Config leftMasterMotorConfig;
-	leftMasterMotorConfig.id = LEFT_MASTER_ID;
-	leftMasterMotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	leftMasterMotorConfig.id = left_master_id;
+	leftMasterMotorConfig.controller_type = (int8_t)motor_type;
 	leftMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
-	leftMasterMotorConfig.invert_type = rio_control_node::Motor_Config::NONE;
-	leftMasterMotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	leftMasterMotorConfig.invert_type = left_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
+	leftMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
 	mMotorConfigurationMsg.motors.push_back(leftMasterMotorConfig);
 
 	rio_control_node::Motor_Config rightMasterMotorConfig;
-	rightMasterMotorConfig.id = RIGHT_MASTER_ID;
-	rightMasterMotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
+	rightMasterMotorConfig.id = right_master_id;
+	rightMasterMotorConfig.controller_type = (int8_t)motor_type;
 	rightMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
-	rightMasterMotorConfig.invert_type = rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT;
-	rightMasterMotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
+	rightMasterMotorConfig.invert_type = right_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
+	rightMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
 	mMotorConfigurationMsg.motors.push_back(rightMasterMotorConfig);
 
-	rio_control_node::Motor_Config leftFollower1MotorConfig;
-	leftFollower1MotorConfig.id = LEFT_FOLLOWER1_ID;
-	leftFollower1MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
-	leftFollower1MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
-	leftFollower1MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
-	leftFollower1MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
-	mMotorConfigurationMsg.motors.push_back(leftFollower1MotorConfig);
+	configureFollowers(leftMaster, left_follower_ids, left_follower_inverted);
+	configureFollowers(rightMaster, right_follower_ids, right_follower_inverted);
 
-	rio_control_node::Motor_Config leftFollower2MotorConfig;
-	leftFollower2MotorConfig.id = LEFT_FOLLOWER2_ID;
-	leftFollower2MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
-	leftFollower2MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
-	leftFollower2MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
-	leftFollower2MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
-	mMotorConfigurationMsg.motors.push_back(leftFollower2MotorConfig);
-
-	rio_control_node::Motor_Config rightFollower1MotorConfig;
-	rightFollower1MotorConfig.id = RIGHT_FOLLOWER1_ID;
-	rightFollower1MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
-	rightFollower1MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
-	rightFollower1MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
-	rightFollower1MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
-	mMotorConfigurationMsg.motors.push_back(rightFollower1MotorConfig);
-
-	rio_control_node::Motor_Config rightFollower2MotorConfig;
-	rightFollower2MotorConfig.id = RIGHT_FOLLOWER2_ID;
-	rightFollower2MotorConfig.controller_type = rio_control_node::Motor_Config::TALON_SRX;
-	rightFollower2MotorConfig.controller_mode = rio_control_node::Motor_Config::SLAVE;
-	rightFollower2MotorConfig.invert_type = rio_control_node::Motor_Config::FOLLOW_MASTER;
-	rightFollower2MotorConfig.neutral_mode = rio_control_node::Motor_Config::COAST;
-	mMotorConfigurationMsg.motors.push_back(rightFollower2MotorConfig);
-
+	mMotorControlPublisher.publish(mMotorControlMsg);
 	mMotorConfigurationPublisher.publish(mMotorConfigurationMsg);
 }
 
@@ -335,13 +292,18 @@ int main(int argc, char **argv)
 	bool required_params_found = true;
 
 	required_params_found &= n.getParam(CKSP(left_master_id), left_master_id);
-	required_params_found &= n.getParam(CKSP(left_slave_ids), left_slave_ids);
+	required_params_found &= n.getParam(CKSP(left_follower_ids), left_follower_ids);
 	required_params_found &= n.getParam(CKSP(left_sensor_inverted), left_sensor_inverted);
-	required_params_found &= n.getParam(CKSP(left_slave_inverted), left_slave_inverted);
+	required_params_found &= n.getParam(CKSP(left_master_inverted), left_master_inverted);
+	required_params_found &= n.getParam(CKSP(left_follower_inverted), left_follower_inverted);
+	required_params_found &= left_follower_ids.size() == left_follower_inverted.size();
 	required_params_found &= n.getParam(CKSP(right_master_id), right_master_id);
-	required_params_found &= n.getParam(CKSP(right_slave_ids), right_slave_ids);
+	required_params_found &= n.getParam(CKSP(right_follower_ids), right_follower_ids);
 	required_params_found &= n.getParam(CKSP(right_sensor_inverted), right_sensor_inverted);
-	required_params_found &= n.getParam(CKSP(right_slave_inverted), right_slave_inverted);
+	required_params_found &= n.getParam(CKSP(right_master_inverted), right_master_inverted);
+	required_params_found &= n.getParam(CKSP(right_follower_inverted), right_follower_inverted);
+	required_params_found &= right_follower_ids.size() == right_follower_inverted.size();
+	required_params_found &= n.getParam(CKSP(motor_type), motor_type);
 	required_params_found &= n.getParam(CKSP(brake_mode_default), brake_mode_default);
 	required_params_found &= n.getParam(CKSP(gear_ratio_motor_to_output_shaft), gear_ratio_motor_to_output_shaft);
 	required_params_found &= n.getParam(CKSP(wheel_diameter_inches), wheel_diameter_inches);

@@ -1,15 +1,20 @@
 #pragma once
 #include <vector>
+#include <stdint.h>
 
 int left_master_id;
-std::vector<int> left_slave_ids;
+std::vector<int> left_follower_ids;
 bool left_sensor_inverted;
-std::vector<int>  left_slave_inverted;
+bool left_master_inverted;
+std::vector<bool>  left_follower_inverted;
 
 int right_master_id;
-std::vector<int> right_slave_ids;
+std::vector<int> right_follower_ids;
 bool right_sensor_inverted;
-std::vector<int>  right_slave_inverted;
+bool right_master_inverted;
+std::vector<bool>  right_follower_inverted;
+
+int motor_type;
 
 bool brake_mode_default;
 
