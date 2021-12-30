@@ -222,7 +222,7 @@ void configureFollowers(rio_control_node::Motor& master, std::vector<int>& follo
 		rio_control_node::Motor_Config followerConfig;
 		followerConfig.id = followerIds[i];
 		followerConfig.controller_type = (int8_t)motor_type;
-		followerConfig.controller_mode = rio_control_node::Motor_Config::FOLLOW_MASTER;
+		followerConfig.controller_mode = rio_control_node::Motor_Config::FOLLOWER;
 		followerConfig.invert_type = followersInverted[i] ? rio_control_node::Motor_Config::OPPOSE_MASTER : rio_control_node::Motor_Config::FOLLOW_MASTER;
 		followerConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
 		mMotorConfigurationMsg.motors.push_back(followerConfig);
