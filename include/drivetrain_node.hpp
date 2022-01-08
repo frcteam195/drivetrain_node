@@ -42,3 +42,5 @@ double motion_s_curve_strength;
 double supply_current_limit;
 double supply_current_limit_threshold;
 double supply_current_limit_threshold_exceeded_time;
+
+double wheel_diameter;

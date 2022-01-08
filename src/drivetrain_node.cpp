@@ -20,6 +20,7 @@
 
 #define STR_PARAM(s) #s
 #define CKSP(s) ckgp( STR_PARAM(s) )
+#define INCHES_TO_METERS 0.0254
 
 ros::NodeHandle* node;
 ros::Publisher mMotorControlPublisher;
@@ -27,7 +28,6 @@ ros::Publisher mMotorConfigurationPublisher;
 static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
-static constexpr double TRACK_SPACING = .16;
 static constexpr double KV = 0;
 rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
@@ -87,16 +87,16 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	{
 		if ( (*i).id == left_master_id)
 		{
-			left_velocity = (*i).sensor_velocity;
+			left_velocity = ((*i).sensor_velocity * wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
 		}
 		if ( (*i).id == right_master_id)
 		{
-			right_velocity = (*i).sensor_velocity;
+			right_velocity = ((*i).sensor_velocity * wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
 		}
 	}
 
 	double robot_velocity = (left_velocity + right_velocity) / 2.0;
-	double angular_velocity = (right_velocity - left_velocity) / TRACK_SPACING;
+	double angular_velocity = (right_velocity - left_velocity) / (robot_track_width_inches * INCHES_TO_METERS);
 
 	nav_msgs::Odometry odometry_data;
     odometry_data.header.stamp = ros::Time::now();
@@ -107,8 +107,8 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	odometry_data.pose.pose.orientation.x = 0;
 	odometry_data.pose.pose.orientation.y = 0;
 	odometry_data.pose.pose.orientation.z = 0;
-	odometry_data.pose.pose.position.x = 0;
-	odometry_data.pose.pose.position.y = 0;
+	odometry_data.pose.pose.position.x = left_velocity;
+	odometry_data.pose.pose.position.y = right_velocity;
 	odometry_data.pose.pose.position.z = 0;
 
 	odometry_data.twist.twist.linear.x = robot_velocity;
@@ -120,20 +120,20 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 	odometry_data.twist.twist.angular.z = angular_velocity;
 
 	odometry_data.pose.covariance =
-	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+	   { 0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.001, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.001, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.001, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.001,};
 
 	odometry_data.twist.covariance =
-	   { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+	   { 0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.001, 0.0, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.001, 0.0, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.001, 0.0,
+		 0.0, 0.0, 0.0, 0.0, 0.0, 0.001,};
 
 	static ros::Publisher odometry_publisher = node->advertise<nav_msgs::Odometry>("/RobotOdometry", 1);
 	odometry_publisher.publish(odometry_data);
@@ -152,7 +152,7 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
         if(traj_follow_cue.traj_follow_active)
         {
             double angular_velocity = traj_follow_cue.velocity.angular.z;
-            double temp = angular_velocity * TRACK_SPACING;
+            double temp = angular_velocity * robot_track_width_inches * INCHES_TO_METERS;
 
             double average_velocity = traj_follow_cue.velocity.linear.x;
             double left_velocity = average_velocity - (temp / 2.0);
