@@ -28,7 +28,6 @@ ros::Publisher mMotorConfigurationPublisher;
 static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
-static constexpr double KV = 0;
 rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
 rio_control_node::Motor* mLeftMaster;
@@ -158,10 +157,13 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
             double left_velocity = average_velocity - (temp / 2.0);
             double right_velocity = average_velocity + (temp / 2.0);
 
+            double left_rpm = (left_velocity * wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
+            double right_rpm = (right_velocity * wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
+
             mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
-            mLeftMaster->output_value = KV * left_velocity;
+            mLeftMaster->output_value = drive_Kv * left_rpm;
             mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
-            mRightMaster->output_value = KV * right_velocity;
+            mRightMaster->output_value = drive_Kv * right_rpm;
 
             // mLeftMaster->control_mode = mLeftMaster->VELOCITY;
             // mLeftMaster->arbitrary_feedforward = KV * left_velocity;
