@@ -159,7 +159,7 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 
             double left_rpm = left_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
             double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-			ROS_INFO("Left RPM: %lf, Right RPM: %lf, Drive Kv: %lf", left_rpm, right_rpm, drive_Kv);
+
             mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
             mLeftMaster->output_value = drive_Kv * left_rpm;
             mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
