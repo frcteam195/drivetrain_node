@@ -232,6 +232,8 @@ void configureFollowers(rio_control_node::Motor& master, std::vector<int>& follo
 		followerConfig.controller_mode = rio_control_node::Motor_Config::FOLLOWER;
 		followerConfig.invert_type = followersInverted[i] ? rio_control_node::Motor_Config::OPPOSE_MASTER : rio_control_node::Motor_Config::FOLLOW_MASTER;
 		followerConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
+		followerConfig.voltage_compensation_saturation = voltage_comp_saturation;
+		followerConfig.voltage_compensation_enabled = voltage_comp_enabled;
 		mMotorConfigurationMsg.motors.push_back(followerConfig);
 	}
 }
@@ -261,6 +263,8 @@ void initMotorConfig()
 	leftMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
 	leftMasterMotorConfig.invert_type = left_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
 	leftMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
+	leftMasterMotorConfig.voltage_compensation_saturation = voltage_comp_saturation;
+	leftMasterMotorConfig.voltage_compensation_enabled = voltage_comp_enabled;
 	mMotorConfigurationMsg.motors.push_back(leftMasterMotorConfig);
 
 	rio_control_node::Motor_Config rightMasterMotorConfig;
@@ -269,6 +273,8 @@ void initMotorConfig()
 	rightMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
 	rightMasterMotorConfig.invert_type = right_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
 	rightMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
+	rightMasterMotorConfig.voltage_compensation_saturation = voltage_comp_saturation;
+	rightMasterMotorConfig.voltage_compensation_enabled = voltage_comp_enabled;
 	mMotorConfigurationMsg.motors.push_back(rightMasterMotorConfig);
 
 	configureFollowers(leftMaster, left_follower_ids, left_follower_inverted);
@@ -311,6 +317,8 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(right_follower_inverted), right_follower_inverted);
 	required_params_found &= right_follower_ids.size() == right_follower_inverted.size();
 	required_params_found &= n.getParam(CKSP(motor_type), motor_type);
+	required_params_found &= n.getParam(CKSP(voltage_comp_saturation), voltage_comp_saturation);
+	required_params_found &= n.getParam(CKSP(voltage_comp_enabled), voltage_comp_enabled);
 	required_params_found &= n.getParam(CKSP(brake_mode_default), brake_mode_default);
 	required_params_found &= n.getParam(CKSP(gear_ratio_motor_to_output_shaft), gear_ratio_motor_to_output_shaft);
 	required_params_found &= n.getParam(CKSP(wheel_diameter_inches), wheel_diameter_inches);

@@ -15,6 +15,8 @@ bool right_master_inverted;
 std::vector<bool>  right_follower_inverted;
 
 int motor_type;
+double voltage_comp_saturation;
+bool voltage_comp_enabled;
 
 bool brake_mode_default;
 
