@@ -236,6 +236,7 @@ void initMotors()
     leftMasterMotor->config().set_inverted( left_master_inverted );
     leftMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     leftMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
     leftMasterMotor->config().apply();
 
     rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
@@ -243,6 +244,7 @@ void initMotors()
     rightMasterMotor->config().set_inverted( right_master_inverted );
     rightMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     rightMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
     rightMasterMotor->config().apply();
 
     // followers
@@ -255,6 +257,7 @@ void initMotors()
         follower_motor->config().set_inverted( left_follower_inverted[i] );
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    	leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
         follower_motor->config().apply();
         leftFollowersMotor.push_back(follower_motor);
     }
@@ -268,6 +271,7 @@ void initMotors()
         follower_motor->config().set_inverted( right_follower_inverted[i] );
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    	leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
         follower_motor->config().apply();
         rightFollowersMotor.push_back(follower_motor);
     }
