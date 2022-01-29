@@ -52,11 +52,10 @@ inline int signum(T val)
 	return (T(0) < val) - (val < T(0));
 }
 
-static const std::string nodeParamPrefix = "/drivetrain_node/";
 std::string ckgp(std::string instr)
 {
-	std::string retVal = nodeParamPrefix;
-	retVal += instr;
+	std::string retVal = ros::this_node::getName();
+	retVal += "/" + instr;
 	return retVal;
 }
 
