@@ -17,6 +17,7 @@
 #include <rio_control_node/Motor_Configuration.h>
 #include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
+#include <ck_utilities/Motor.hpp>
 
 #define STR_PARAM(s) #s
 #define CKSP(s) ckgp( STR_PARAM(s) )
@@ -32,12 +33,18 @@ rio_control_node::Motor_Control mMotorControlMsg;
 rio_control_node::Motor_Configuration mMotorConfigurationMsg;
 rio_control_node::Motor* mLeftMaster;
 rio_control_node::Motor* mRightMaster;
+
 int mRobotStatus;
 float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
 static local_planner_node::TrajectoryFollowCue traj_follow_cue;
+
+Motor* leftMasterMotor;
+Motor* rightMasterMotor;
+std::vector<Motor*> leftFollowersMotor;
+std::vector<Motor*> rightFollowersMotor;
 
 template <typename T>
 inline int signum(T val)
@@ -160,33 +167,36 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
             double left_rpm = left_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
             double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
 
-            mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
-            mLeftMaster->output_value = drive_Kv * left_rpm;
-            mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
-            mRightMaster->output_value = drive_Kv * right_rpm;
+            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                  drive_Kv * left_rpm,
+                                  0 );
 
-            // mLeftMaster->control_mode = mLeftMaster->VELOCITY;
-            // mLeftMaster->arbitrary_feedforward = KV * left_velocity;
-            // mLeftMaster->output_value = left_velocity;
-            // mRightMaster->control_mode = mRightMaster->VELOCITY;
-            // mRightMaster->arbitrary_feedforward = KV * right_velocity;
-            // mRightMaster->output_value = right_velocity;
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                   drive_Kv * right_rpm,
+                                   0 );
         }
         else
         {
-            mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
-            mLeftMaster->output_value = 0;
-            mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
-            mRightMaster->output_value = 0;
+
+            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                  0,
+                                  0 );
+
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                   0,
+                                   0 );
         }
 	}
     break;
 	case rio_control_node::Robot_Status::TELEOP:
 	{
-        mLeftMaster->control_mode = mLeftMaster->PERCENT_OUTPUT;
-		mLeftMaster->output_value = std::max(std::min(mJoystick1y + mJoystick1x, 1.0f), -1.0f);
-        mRightMaster->control_mode = mRightMaster->PERCENT_OUTPUT;
-		mRightMaster->output_value = std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f);
+        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                              std::max(std::min(mJoystick1y + mJoystick1x, 1.0f), -1.0f),
+                              0 );
+
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                   std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f),
+                                   0 );
 	}
 		break;
 	default:
@@ -215,73 +225,53 @@ void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
 	}
 }
 
-void configureFollowers(rio_control_node::Motor& master, std::vector<int>& followerIds, std::vector<bool>& followersInverted)
+
+void initMotors()
 {
-	for (size_t i = 0; i < followerIds.size(); i++)
+    leftMasterMotor = new Motor( left_master_id, (Motor::Motor_Type)motor_type );
+    rightMasterMotor = new Motor( right_master_id, (Motor::Motor_Type)motor_type );
+
+    leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+    leftMasterMotor->config().set_fast_master(true);
+    leftMasterMotor->config().set_inverted( left_master_inverted );
+    leftMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
+    leftMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    leftMasterMotor->config().apply();
+
+    rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+    rightMasterMotor->config().set_fast_master(true);
+    rightMasterMotor->config().set_inverted( right_master_inverted );
+    rightMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
+    rightMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+    rightMasterMotor->config().apply();
+
+    // followers
+    //  left
+    for (size_t i = 0; i < left_follower_ids.size(); i++)
 	{
-		rio_control_node::Motor follower;
-		follower.id = followerIds[i];
-		follower.output_value = master.id;
-		follower.controller_type = (int8_t)motor_type;
-		follower.control_mode = rio_control_node::Motor::FOLLOWER;
-		mMotorControlMsg.motors.push_back(follower);
+        Motor* follower_motor = new Motor( left_follower_ids[i], (Motor::Motor_Type)motor_type );
+        follower_motor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+        follower_motor->config().set_follower(true, left_master_id);
+        follower_motor->config().set_inverted( left_follower_inverted[i] );
+        follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
+        follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+        follower_motor->config().apply();
+        leftFollowersMotor.push_back(follower_motor);
+    }
 
-		rio_control_node::Motor_Config followerConfig;
-		followerConfig.id = followerIds[i];
-		followerConfig.controller_type = (int8_t)motor_type;
-		followerConfig.controller_mode = rio_control_node::Motor_Config::FOLLOWER;
-		followerConfig.invert_type = followersInverted[i] ? rio_control_node::Motor_Config::OPPOSE_MASTER : rio_control_node::Motor_Config::FOLLOW_MASTER;
-		followerConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
-		followerConfig.voltage_compensation_saturation = voltage_comp_saturation;
-		followerConfig.voltage_compensation_enabled = voltage_comp_enabled;
-		mMotorConfigurationMsg.motors.push_back(followerConfig);
-	}
-}
+    //  right
+    for (size_t i = 0; i < right_follower_ids.size(); i++)
+	{
+        Motor* follower_motor = new Motor( right_follower_ids[i], (Motor::Motor_Type)motor_type );
+        follower_motor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+        follower_motor->config().set_follower(true, right_master_id);
+        follower_motor->config().set_inverted( right_follower_inverted[i] );
+        follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
+        follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
+        follower_motor->config().apply();
+        rightFollowersMotor.push_back(follower_motor);
+    }
 
-void initMotorConfig()
-{
-	rio_control_node::Motor leftMaster;
-	leftMaster.id = left_master_id;
-	leftMaster.controller_type = (int8_t)motor_type;
-	leftMaster.output_value = 0;
-	leftMaster.control_mode = rio_control_node::Motor::PERCENT_OUTPUT;
-	mMotorControlMsg.motors.push_back(leftMaster);
-
-	rio_control_node::Motor rightMaster;
-	rightMaster.id = right_master_id;
-	rightMaster.controller_type = (int8_t)motor_type;
-	rightMaster.output_value = 0;
-	rightMaster.control_mode = rio_control_node::Motor::PERCENT_OUTPUT;
-	mMotorControlMsg.motors.push_back(rightMaster);
-
-	mLeftMaster = &mMotorControlMsg.motors[0];
-	mRightMaster = &mMotorControlMsg.motors[1];
-
-	rio_control_node::Motor_Config leftMasterMotorConfig;
-	leftMasterMotorConfig.id = left_master_id;
-	leftMasterMotorConfig.controller_type = (int8_t)motor_type;
-	leftMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
-	leftMasterMotorConfig.invert_type = left_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
-	leftMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
-	leftMasterMotorConfig.voltage_compensation_saturation = voltage_comp_saturation;
-	leftMasterMotorConfig.voltage_compensation_enabled = voltage_comp_enabled;
-	mMotorConfigurationMsg.motors.push_back(leftMasterMotorConfig);
-
-	rio_control_node::Motor_Config rightMasterMotorConfig;
-	rightMasterMotorConfig.id = right_master_id;
-	rightMasterMotorConfig.controller_type = (int8_t)motor_type;
-	rightMasterMotorConfig.controller_mode = rio_control_node::Motor_Config::FAST_MASTER;
-	rightMasterMotorConfig.invert_type = right_master_inverted ? rio_control_node::Motor_Config::INVERT_MOTOR_OUTPUT : rio_control_node::Motor_Config::NONE;
-	rightMasterMotorConfig.neutral_mode = brake_mode_default ? rio_control_node::Motor_Config::BRAKE : rio_control_node::Motor_Config::COAST;
-	rightMasterMotorConfig.voltage_compensation_saturation = voltage_comp_saturation;
-	rightMasterMotorConfig.voltage_compensation_enabled = voltage_comp_enabled;
-	mMotorConfigurationMsg.motors.push_back(rightMasterMotorConfig);
-
-	configureFollowers(leftMaster, left_follower_ids, left_follower_inverted);
-	configureFollowers(rightMaster, right_follower_ids, right_follower_inverted);
-
-	mMotorControlPublisher.publish(mMotorControlMsg);
-	mMotorConfigurationPublisher.publish(mMotorConfigurationMsg);
 }
 
 int main(int argc, char **argv)
@@ -351,15 +341,12 @@ int main(int argc, char **argv)
 	mMotorControlPublisher = node->advertise<rio_control_node::Motor_Control>("MotorControl", 1);
 	mMotorConfigurationPublisher = node->advertise<rio_control_node::Motor_Configuration>("MotorConfiguration", 1);
 
-
 	ros::Subscriber joystickStatus = node->subscribe("JoystickStatus", 10, joystickStatusCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 10, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 10, robotStatusCallback);
 	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 10, trajectoryCueCallback);
 
-	initMotorConfig();
-
-
+    initMotors();
 
 	ros::spin();
 	return 0;
