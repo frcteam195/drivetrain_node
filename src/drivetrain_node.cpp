@@ -193,13 +193,22 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
                               std::max(std::min(mJoystick1y + mJoystick1x, 1.0f), -1.0f),
                               0 );
 
-            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                   std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f),
-                                   0 );
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+								std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f),
+								0 );
 	}
-		break;
+	break;
 	default:
-		break;
+	{
+		leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+								0,
+								0 );
+
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+								0,
+								0 );
+	}
+	break;
 	}
 
 	mMotorControlPublisher.publish(mMotorControlMsg);
