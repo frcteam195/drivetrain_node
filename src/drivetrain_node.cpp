@@ -156,6 +156,16 @@ void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
 			mJoystick1y = -normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[1], kJoystickDeadband);
 		}
 	}
+	else
+	{
+		leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+								0,
+								0 );
+
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+								0,
+								0 );
+	}
 	
 	switch (mRobotStatus)
 	{
