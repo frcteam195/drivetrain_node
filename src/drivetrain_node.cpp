@@ -27,10 +27,6 @@ ros::NodeHandle* node;
 static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
-rio_control_node::Motor_Control mMotorControlMsg;
-rio_control_node::Motor_Configuration mMotorConfigurationMsg;
-rio_control_node::Motor* mLeftMaster;
-rio_control_node::Motor* mRightMaster;
 
 int mRobotStatus;
 float mJoystick1x;
