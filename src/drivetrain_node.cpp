@@ -24,8 +24,6 @@
 #define INCHES_TO_METERS 0.0254
 
 ros::NodeHandle* node;
-ros::Publisher mMotorControlPublisher;
-ros::Publisher mMotorConfigurationPublisher;
 static constexpr float kJoystickDeadband = 0.05f;
 static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
@@ -150,7 +148,20 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	publishOdometryData(msg);
 
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+}
 
+void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
+{
+	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+	if (msg.joysticks.size() > 0)
+	{
+		if (msg.joysticks[DRIVE_JOYSTICK].axes.size() > 1)
+		{
+			mJoystick1x = normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[0], kJoystickDeadband);
+			mJoystick1y = -normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[1], kJoystickDeadband);
+		}
+	}
+	
 	switch (mRobotStatus)
 	{
 	case rio_control_node::Robot_Status::AUTONOMOUS:
@@ -210,27 +221,6 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 								0 );
 	}
 	break;
-	}
-
-	mMotorControlPublisher.publish(mMotorControlMsg);
-
-	if (mConfigUpdateCounter++ % 100 == 0)
-	{
-		//Send a config update roughly every 500ms
-		mMotorConfigurationPublisher.publish(mMotorConfigurationMsg);
-	}
-}
-
-void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
-{
-	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
-	if (msg.joysticks.size() > 0)
-	{
-		if (msg.joysticks[DRIVE_JOYSTICK].axes.size() > 1)
-		{
-			mJoystick1x = normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[0], kJoystickDeadband);
-			mJoystick1y = -normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[1], kJoystickDeadband);
-		}
 	}
 }
 
@@ -350,9 +340,6 @@ int main(int argc, char **argv)
 		ROS_ERROR("Missing required parameters. Please check the list and make sure all required parameters are included");
 		return 1;
 	}
-
-	mMotorControlPublisher = node->advertise<rio_control_node::Motor_Control>("MotorControl", 1);
-	mMotorConfigurationPublisher = node->advertise<rio_control_node::Motor_Configuration>("MotorConfiguration", 1);
 
 	ros::Subscriber joystickStatus = node->subscribe("JoystickStatus", 10, joystickStatusCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 10, motorStatusCallback);
