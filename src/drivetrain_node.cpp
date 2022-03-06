@@ -297,10 +297,10 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ros::Subscriber joystickStatus = node->subscribe("/HMISignals", 10, hmiSignalsCallback);
-	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 10, motorStatusCallback);
-	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 10, robotStatusCallback);
-	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 10, trajectoryCueCallback);
+	ros::Subscriber joystickStatus = node->subscribe("/HMISignals", 1, hmiSignalsCallback);
+	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 1, motorStatusCallback);
+	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 1, robotStatusCallback);
+	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 1, trajectoryCueCallback);
 
     initMotors();
 
