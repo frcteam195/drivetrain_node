@@ -18,14 +18,16 @@
 #include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 #include <ck_utilities/Motor.hpp>
+#include <ck_utilities/CKMath.hpp>
+#include <ck_utilities/ParameterHelper.hpp>
 
-#define STR_PARAM(s) #s
-#define CKSP(s) ckgp( STR_PARAM(s) )
+#include <hmi_agent_node/HMI_Signals.h>
+
+#include "drive_helper.hpp"
+
 #define INCHES_TO_METERS 0.0254
 
 ros::NodeHandle* node;
-static constexpr float kJoystickDeadband = 0.05f;
-static constexpr int DRIVE_JOYSTICK = 0;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
 
 int mRobotStatus;
@@ -39,30 +41,7 @@ Motor* leftMasterMotor;
 Motor* rightMasterMotor;
 std::vector<Motor*> leftFollowersMotor;
 std::vector<Motor*> rightFollowersMotor;
-
-template <typename T>
-inline int signum(T val)
-{
-	return (T(0) < val) - (val < T(0));
-}
-
-std::string ckgp(std::string instr)
-{
-	std::string retVal = ros::this_node::getName();
-	retVal += "/" + instr;
-	return retVal;
-}
-
-float normalizeJoystickWithDeadband(float val, float deadband) {
-	val = (std::abs(val) > std::abs(deadband)) ? val : 0.0;
-
-	if (val != 0)
-	{
-		val = signum(val) * ((std::abs(val) - deadband) / (1.0 - deadband));
-	}
-
-	return (std::abs(val) > std::abs(deadband)) ? val : 0.0;
-}
+DriveHelper driveHelper;
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -145,27 +124,9 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 }
 
-void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
+void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
-	if (msg.joysticks.size() > 0)
-	{
-		if (msg.joysticks[DRIVE_JOYSTICK].axes.size() > 1)
-		{
-			mJoystick1x = normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[0], kJoystickDeadband);
-			mJoystick1y = -normalizeJoystickWithDeadband(msg.joysticks[DRIVE_JOYSTICK].axes[1], kJoystickDeadband);
-		}
-	}
-	else
-	{
-		leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-								0,
-								0 );
-
-		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-								0,
-								0 );
-	}
 	
 	switch (mRobotStatus)
 	{
@@ -194,36 +155,26 @@ void joystickStatusCallback(const rio_control_node::Joystick_Status& msg)
         else
         {
 
-            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                  0,
-                                  0 );
-
-            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                   0,
-                                   0 );
+            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
         }
 	}
     break;
 	case rio_control_node::Robot_Status::TELEOP:
 	{
-        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                              std::max(std::min(mJoystick1y + mJoystick1x, 1.0f), -1.0f),
-                              0 );
+		DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back,
+														   msg.drivetrain_left_right,
+														   msg.drivetrain_quickturn,
+														   true );
 
-		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-								std::max(std::min(mJoystick1y - mJoystick1x, 1.0f), -1.0f),
-								0 );
+        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, dv.left, 0 );
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, dv.right, 0 );
 	}
 	break;
 	default:
 	{
-		leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-								0,
-								0 );
-
-		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-								0,
-								0 );
+		leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
 	}
 	break;
 	}
@@ -346,7 +297,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ros::Subscriber joystickStatus = node->subscribe("JoystickStatus", 10, joystickStatusCallback);
+	ros::Subscriber joystickStatus = node->subscribe("/HMISignals", 10, hmiSignalsCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 10, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 10, robotStatusCallback);
 	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 10, trajectoryCueCallback);
