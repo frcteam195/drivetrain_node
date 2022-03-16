@@ -193,6 +193,7 @@ void initMotors()
     leftMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
 	leftMasterMotor->config().set_open_loop_ramp(0.5);
+	leftMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
     leftMasterMotor->config().apply();
 
     rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
@@ -200,8 +201,9 @@ void initMotors()
     rightMasterMotor->config().set_inverted( right_master_inverted );
     rightMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     rightMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
-    leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
+    rightMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
 	rightMasterMotor->config().set_open_loop_ramp(0.5);
+	rightMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
     rightMasterMotor->config().apply();
 
     // followers
@@ -215,6 +217,8 @@ void initMotors()
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     	follower_motor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
+		follower_motor->config().set_open_loop_ramp(0.5);
+		follower_motor->config().set_supply_current_limit(true, 40, 0, 0);
         follower_motor->config().apply();
         leftFollowersMotor.push_back(follower_motor);
     }
