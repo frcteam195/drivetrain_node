@@ -15,6 +15,7 @@
 #include <rio_control_node/Robot_Status.h>
 #include <rio_control_node/Motor_Control.h>
 #include <rio_control_node/Motor_Configuration.h>
+#include <turret_node/turret_status.h>
 #include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 #include <ck_utilities/Motor.hpp>
@@ -36,6 +37,7 @@ float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
 static local_planner_node::TrajectoryFollowCue traj_follow_cue;
+static bool about_to_shoot = false;
 
 Motor* leftMasterMotor;
 Motor* rightMasterMotor;
@@ -47,6 +49,11 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	mRobotStatus = msg.robot_state;
+}
+
+void turret_status_callback(const turret_node::turret_status& msg)
+{
+	about_to_shoot = msg.about_to_shoot;
 }
 
 void trajectoryCueCallback(const local_planner_node::TrajectoryFollowCue& msg)
@@ -162,8 +169,13 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
     break;
 	case rio_control_node::Robot_Status::TELEOP:
 	{
-		DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back,
-														   msg.drivetrain_left_right,
+		float shoot_multiplier = 1.0;
+		if(about_to_shoot)
+		{
+			shoot_multiplier = 0.0;
+		}
+		DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
+														   msg.drivetrain_left_right * shoot_multiplier,
 														   msg.drivetrain_quickturn,
 														   true );
 
@@ -307,6 +319,7 @@ int main(int argc, char **argv)
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 1, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 1, robotStatusCallback);
 	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 1, trajectoryCueCallback);
+	ros::Subscriber turret_status_subscriber = node->subscribe("/TurretStatus", 1, turret_status_callback);
 
     initMotors();
 
