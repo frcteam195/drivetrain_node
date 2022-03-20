@@ -134,6 +134,8 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+	
+	bool brake_mode = msg.drivetrain_brake;
 
 	switch (mRobotStatus)
 	{
@@ -190,6 +192,41 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
 	}
 	break;
+	}
+
+	if (brake_mode)
+	{
+		leftMasterMotor->config().set_neutral_mode(MotorConfig::NeutralMode::BRAKE);
+		leftMasterMotor->config().apply();
+		for (Motor* mF : leftFollowersMotor)
+		{
+			mF->config().set_neutral_mode(MotorConfig::NeutralMode::BRAKE);
+			mF->config().apply();
+		}
+		rightMasterMotor->config().set_neutral_mode(MotorConfig::NeutralMode::BRAKE);
+		rightMasterMotor->config().apply();
+		for (Motor* mF : rightFollowersMotor)
+		{
+			mF->config().set_neutral_mode(MotorConfig::NeutralMode::BRAKE);
+			mF->config().apply();
+		}
+	}
+	else
+	{
+		leftMasterMotor->config().set_neutral_mode(MotorConfig::NeutralMode::COAST);
+		leftMasterMotor->config().apply();
+		for (Motor* mF : leftFollowersMotor)
+		{
+			mF->config().set_neutral_mode(MotorConfig::NeutralMode::COAST);
+			mF->config().apply();
+		}
+		rightMasterMotor->config().set_neutral_mode(MotorConfig::NeutralMode::COAST);
+		rightMasterMotor->config().apply();
+		for (Motor* mF : rightFollowersMotor)
+		{
+			mF->config().set_neutral_mode(MotorConfig::NeutralMode::COAST);
+			mF->config().apply();
+		}
 	}
 }
 
