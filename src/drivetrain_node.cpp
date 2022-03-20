@@ -205,7 +205,7 @@ void initMotors()
     leftMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     leftMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-	leftMasterMotor->config().set_open_loop_ramp(0.3);
+	leftMasterMotor->config().set_open_loop_ramp(0.2);
 	leftMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
     leftMasterMotor->config().apply();
 
@@ -215,7 +215,7 @@ void initMotors()
     rightMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     rightMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     rightMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-	rightMasterMotor->config().set_open_loop_ramp(0.3);
+	rightMasterMotor->config().set_open_loop_ramp(0.2);
 	rightMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
     rightMasterMotor->config().apply();
 
@@ -230,7 +230,7 @@ void initMotors()
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     	follower_motor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-		follower_motor->config().set_open_loop_ramp(0.3);
+		follower_motor->config().set_open_loop_ramp(0.2);
 		follower_motor->config().set_supply_current_limit(true, 40, 0, 0);
         follower_motor->config().apply();
         leftFollowersMotor.push_back(follower_motor);
@@ -246,7 +246,7 @@ void initMotors()
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     	follower_motor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-		follower_motor->config().set_open_loop_ramp(0.3);
+		follower_motor->config().set_open_loop_ramp(0.2);
 		follower_motor->config().set_supply_current_limit(true, 40, 0, 0);
         follower_motor->config().apply();
         rightFollowersMotor.push_back(follower_motor);
