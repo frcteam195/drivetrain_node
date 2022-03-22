@@ -21,6 +21,7 @@
 #include <ck_utilities/Motor.hpp>
 #include <ck_utilities/CKMath.hpp>
 #include <ck_utilities/ParameterHelper.hpp>
+#include <ck_utilities/ValueRamper.hpp>
 
 #include <hmi_agent_node/HMI_Signals.h>
 
@@ -44,6 +45,8 @@ Motor* rightMasterMotor;
 std::vector<Motor*> leftFollowersMotor;
 std::vector<Motor*> rightFollowersMotor;
 DriveHelper driveHelper;
+ValueRamper mLeftValueRamper(0.4, 0.1, 0, 1);
+ValueRamper mRightValueRamper(0.4, 0.1, 0, 1);
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -182,8 +185,8 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 														   msg.drivetrain_quickturn,
 														   true );
 
-        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, dv.left, 0 );
-		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, dv.right, 0 );
+        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, mLeftValueRamper.calculateOutput(dv.left), 0 );
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, mRightValueRamper.calculateOutput(dv.right), 0 );
 	}
 	break;
 	default:
@@ -242,8 +245,8 @@ void initMotors()
     leftMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     leftMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-	leftMasterMotor->config().set_open_loop_ramp(0.2);
-	leftMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
+	leftMasterMotor->config().set_open_loop_ramp(open_loop_ramp);
+	leftMasterMotor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
     leftMasterMotor->config().apply();
 
     rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
@@ -252,8 +255,8 @@ void initMotors()
     rightMasterMotor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
     rightMasterMotor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     rightMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-	rightMasterMotor->config().set_open_loop_ramp(0.2);
-	rightMasterMotor->config().set_supply_current_limit(true, 40, 0, 0);
+	rightMasterMotor->config().set_open_loop_ramp(open_loop_ramp);
+	rightMasterMotor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
     rightMasterMotor->config().apply();
 
     // followers
@@ -267,8 +270,8 @@ void initMotors()
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     	follower_motor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-		follower_motor->config().set_open_loop_ramp(0.2);
-		follower_motor->config().set_supply_current_limit(true, 40, 0, 0);
+		follower_motor->config().set_open_loop_ramp(open_loop_ramp);
+		follower_motor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
         follower_motor->config().apply();
         leftFollowersMotor.push_back(follower_motor);
     }
@@ -283,8 +286,8 @@ void initMotors()
         follower_motor->config().set_neutral_mode( brake_mode_default ? MotorConfig::NeutralMode::BRAKE : MotorConfig::NeutralMode::COAST);
         follower_motor->config().set_voltage_compensation_saturation( voltage_comp_saturation );
     	follower_motor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
-		follower_motor->config().set_open_loop_ramp(0.2);
-		follower_motor->config().set_supply_current_limit(true, 40, 0, 0);
+		follower_motor->config().set_open_loop_ramp(open_loop_ramp);
+		follower_motor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
         follower_motor->config().apply();
         rightFollowersMotor.push_back(follower_motor);
     }
@@ -345,6 +348,7 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(motion_cruise_velocity), motion_cruise_velocity);
 	required_params_found &= n.getParam(CKSP(motion_accel), motion_accel);
 	required_params_found &= n.getParam(CKSP(motion_s_curve_strength), motion_s_curve_strength);
+	required_params_found &= n.getParam(CKSP(open_loop_ramp), open_loop_ramp);
 	required_params_found &= n.getParam(CKSP(supply_current_limit), supply_current_limit);
 	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold), supply_current_limit_threshold);
 	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold_exceeded_time), supply_current_limit_threshold_exceeded_time);

@@ -41,6 +41,7 @@ double motion_cruise_velocity;
 double motion_accel;
 double motion_s_curve_strength;
 
+double open_loop_ramp;
 double supply_current_limit;
 double supply_current_limit_threshold;
 double supply_current_limit_threshold_exceeded_time;
