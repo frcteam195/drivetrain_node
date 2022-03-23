@@ -26,6 +26,7 @@
 #include <hmi_agent_node/HMI_Signals.h>
 
 #include "drive_helper.hpp"
+#include "drivetrain_node/Drivetrain_Diagnostics.h"
 
 #define INCHES_TO_METERS 0.0254
 
@@ -47,6 +48,8 @@ std::vector<Motor*> rightFollowersMotor;
 DriveHelper driveHelper;
 ValueRamper mLeftValueRamper(0.4, 0.1, 0, 1);
 ValueRamper mRightValueRamper(0.4, 0.1, 0, 1);
+
+drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -184,9 +187,15 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 														   msg.drivetrain_left_right * shoot_multiplier,
 														   msg.drivetrain_quickturn,
 														   true );
+		drivetrain_diagnostics.rawLeftMotorOutput = dv.left;
+		drivetrain_diagnostics.rawRightMotorOutput = dv.right;
+		double left = mLeftValueRamper.calculateOutput(dv.left);
+		double right = mRightValueRamper.calculateOutput(dv.right);
+		drivetrain_diagnostics.rampedLeftMotorOutput = left;
+		drivetrain_diagnostics.rampedRightMotorOutput = right;
 
-        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, mLeftValueRamper.calculateOutput(dv.left), 0 );
-		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, mRightValueRamper.calculateOutput(dv.right), 0 );
+        leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
+		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
 	}
 	break;
 	default:
@@ -231,6 +240,9 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 			mF->config().apply();
 		}
 	}
+
+	static ros::Publisher drivetrain_diagnostics_publisher = node->advertise<drivetrain_node::Drivetrain_Diagnostics>("/DrivetrainDiagnostics", 1);
+	drivetrain_diagnostics_publisher.publish(drivetrain_diagnostics);
 }
 
 

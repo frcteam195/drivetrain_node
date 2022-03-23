@@ -12,6 +12,16 @@ project(${PROJECT_NAME})
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node turret_node local_planner_node ck_utilities_node hmi_agent_node)
 
+add_message_files(
+  FILES
+  Drivetrain_Diagnostics.msg
+)
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  std_msgs  # Or other packages containing msgs
+)
 
 catkin_package(
 #  INCLUDE_DIRS include

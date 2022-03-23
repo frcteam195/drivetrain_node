@@ -1,0 +1,4 @@
+float64 rawLeftMotorOutput
+float64 rawRightMotorOutput
+float64 rampedLeftMotorOutput
+float64 rampedRightMotorOutput
