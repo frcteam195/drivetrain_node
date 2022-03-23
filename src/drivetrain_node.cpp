@@ -15,7 +15,7 @@
 #include <rio_control_node/Robot_Status.h>
 #include <rio_control_node/Motor_Control.h>
 #include <rio_control_node/Motor_Configuration.h>
-#include <turret_node/turret_status.h>
+#include <turret_node/Turret_Status.h>
 #include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 #include <ck_utilities/Motor.hpp>
@@ -46,8 +46,8 @@ Motor* rightMasterMotor;
 std::vector<Motor*> leftFollowersMotor;
 std::vector<Motor*> rightFollowersMotor;
 DriveHelper driveHelper;
-ValueRamper mLeftValueRamper(0.4, 0.1, 0, 1);
-ValueRamper mRightValueRamper(0.4, 0.1, 0, 1);
+ValueRamper mLeftValueRamper(0.5, 0.2, 0, 1);
+ValueRamper mRightValueRamper(0.5, 0.2, 0, 1);
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
@@ -57,7 +57,7 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 	mRobotStatus = msg.robot_state;
 }
 
-void turret_status_callback(const turret_node::turret_status& msg)
+void turret_status_callback(const turret_node::Turret_Status& msg)
 {
 	about_to_shoot = msg.about_to_shoot;
 }
