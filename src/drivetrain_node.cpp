@@ -46,8 +46,8 @@ Motor* rightMasterMotor;
 std::vector<Motor*> leftFollowersMotor;
 std::vector<Motor*> rightFollowersMotor;
 DriveHelper driveHelper;
-ValueRamper mLeftValueRamper(0.5, 0.2, 0, 1);
-ValueRamper mRightValueRamper(0.5, 0.2, 0, 1);
+ValueRamper* mLeftValueRamper;
+ValueRamper* mRightValueRamper;
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
@@ -183,22 +183,29 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		{
 			shoot_multiplier = 0.0;
 		}
-		// DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
-		// 												   msg.drivetrain_left_right * shoot_multiplier,
-		// 												   msg.drivetrain_quickturn,
-		// 												   true );
-		// drivetrain_diagnostics.rawLeftMotorOutput = dv.left;
-		// drivetrain_diagnostics.rawRightMotorOutput = dv.right;
-		// double left = mLeftValueRamper.calculateOutput(dv.left);
-		// double right = mRightValueRamper.calculateOutput(dv.right);
-		
-		double leftPre = std::max(std::min(msg.drivetrain_fwd_back + msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
-		double rightPre = std::max(std::min(msg.drivetrain_fwd_back - msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
 
+		double leftPre = 0;
+		double rightPre = 0;
+
+		if (curvature_drive)
+		{
+			DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
+															msg.drivetrain_left_right * shoot_multiplier,
+															msg.drivetrain_quickturn,
+															true );
+			leftPre = dv.left;
+			rightPre = dv.right;
+		}
+		else
+		{
+			leftPre = std::max(std::min(msg.drivetrain_fwd_back + msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+			rightPre = std::max(std::min(msg.drivetrain_fwd_back - msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+		}
+		
 		drivetrain_diagnostics.rawLeftMotorOutput = leftPre;
 		drivetrain_diagnostics.rawRightMotorOutput = rightPre;
-		double left = mLeftValueRamper.calculateOutput(leftPre);
-		double right = mRightValueRamper.calculateOutput(rightPre);
+		double left = mLeftValueRamper->calculateOutput(leftPre);
+		double right = mRightValueRamper->calculateOutput(rightPre);
 
 		drivetrain_diagnostics.rampedLeftMotorOutput = left;
 		drivetrain_diagnostics.rampedRightMotorOutput = right;
@@ -373,12 +380,20 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(supply_current_limit), supply_current_limit);
 	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold), supply_current_limit_threshold);
 	required_params_found &= n.getParam(CKSP(supply_current_limit_threshold_exceeded_time), supply_current_limit_threshold_exceeded_time);
+	required_params_found &= n.getParam(CKSP(joystick_input_ramp_accel), joystick_input_ramp_accel);
+	required_params_found &= n.getParam(CKSP(joystick_input_ramp_decel), joystick_input_ramp_decel);
+	required_params_found &= n.getParam(CKSP(joystick_input_ramp_zero_val), joystick_input_ramp_zero_val);
+	required_params_found &= n.getParam(CKSP(joystick_input_ramp_max_val), joystick_input_ramp_max_val);
+	required_params_found &= n.getParam(CKSP(curvature_drive), curvature_drive);
 
 	if (!required_params_found)
 	{
 		ROS_ERROR("Missing required parameters. Please check the list and make sure all required parameters are included");
 		return 1;
 	}
+
+	mLeftValueRamper = new ValueRamper(joystick_input_ramp_accel, joystick_input_ramp_decel, joystick_input_ramp_zero_val, joystick_input_ramp_max_val);
+	mRightValueRamper = new ValueRamper(joystick_input_ramp_accel, joystick_input_ramp_decel, joystick_input_ramp_zero_val, joystick_input_ramp_max_val);
 
 	ros::Subscriber joystickStatus = node->subscribe("/HMISignals", 1, hmiSignalsCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 1, motorStatusCallback);

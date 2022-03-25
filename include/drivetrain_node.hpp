@@ -45,3 +45,10 @@ double open_loop_ramp;
 double supply_current_limit;
 double supply_current_limit_threshold;
 double supply_current_limit_threshold_exceeded_time;
+
+double joystick_input_ramp_accel;
+double joystick_input_ramp_decel;
+double joystick_input_ramp_zero_val;
+double joystick_input_ramp_max_val;
+
+bool curvature_drive;
