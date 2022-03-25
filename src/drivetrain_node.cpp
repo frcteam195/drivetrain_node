@@ -28,6 +28,12 @@
 #include "drive_helper.hpp"
 #include "drivetrain_node/Drivetrain_Diagnostics.h"
 
+
+#define CHARACTERIZE_DRIVE
+#ifdef CHARACTERIZE_DRIVE
+#include "drive_physics_characterizer_node/Drive_Characterization_Output.h"
+#endif
+
 #define INCHES_TO_METERS 0.0254
 
 #define DYNAMIC_RECONFIGURE_TUNING
@@ -85,6 +91,19 @@ void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	mRobotStatus = msg.robot_state;
 }
+
+
+#ifdef CHARACTERIZE_DRIVE
+static bool characterizing_drive = false;
+static double characterizing_drive_left_output = true;
+static double characterizing_drive_right_output = true;
+void drive_characterization_callback(const drive_physics_characterizer_node::Drive_Characterization_Output& msg)
+{
+	characterizing_drive = msg.characterizing_drive;
+	characterizing_drive_left_output = msg.left_drive_output;
+	characterizing_drive_right_output = msg.right_drive_output;
+}
+#endif
 
 void turret_status_callback(const turret_node::Turret_Status& msg)
 {
@@ -238,6 +257,14 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 
 		drivetrain_diagnostics.rampedLeftMotorOutput = left;
 		drivetrain_diagnostics.rampedRightMotorOutput = right;
+
+#ifdef CHARACTERIZE_DRIVE
+		if (characterizing_drive)
+		{
+			left = characterizing_drive_left_output;
+			right = characterizing_drive_right_output;
+		}
+#endif
 
         leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
 		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
@@ -444,6 +471,9 @@ int main(int argc, char **argv)
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 1, robotStatusCallback);
 	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 1, trajectoryCueCallback);
 	ros::Subscriber turret_status_subscriber = node->subscribe("/TurretStatus", 1, turret_status_callback);
+#ifdef CHARACTERIZE_DRIVE
+	ros::Subscriber drive_characterization_subscriber = node->subscribe("/DriveCharacterizationOutput", 1, drive_characterization_callback);
+#endif
 
     initMotors();
 
