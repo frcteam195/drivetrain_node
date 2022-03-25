@@ -180,9 +180,38 @@ void publishOdometryData(const rio_control_node::Motor_Status& msg)
 
 void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 {
+	static ros::Time prev_time(0);
+	static double prevLeftVel = 0;
+	static double prevRightVel = 0;
+	static std::map<uint16_t, rio_control_node::Motor_Info> motor_map;
 	publishOdometryData(msg);
+	for (const rio_control_node::Motor_Info& m : msg.motors)
+	{
+		motor_map[m.id] = m;
+	}
+
+	ros::Time curr_time = ros::Time::now();
+	double dt = (curr_time - prev_time).toSec();
 
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+	if (motor_map.count(left_master_id))
+	{
+		drivetrain_diagnostics.actualVelocityLeft = motor_map[left_master_id].sensor_velocity;
+	}
+	if (motor_map.count(right_master_id))
+	{
+		drivetrain_diagnostics.actualVelocityRight = motor_map[right_master_id].sensor_velocity;
+	}
+
+	if (prev_time != ros::Time(0) && dt != 0)
+	{
+		drivetrain_diagnostics.actualAccelLeft = (drivetrain_diagnostics.actualVelocityLeft - prevLeftVel) / dt;
+		drivetrain_diagnostics.actualAccelRight = (drivetrain_diagnostics.actualVelocityRight - prevRightVel) / dt;
+	}
+	
+	prevLeftVel = drivetrain_diagnostics.actualAccelLeft;
+	prevRightVel = drivetrain_diagnostics.actualAccelRight;
+	prev_time = curr_time;
 }
 
 void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
@@ -193,38 +222,49 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 
 	switch (mRobotStatus)
 	{
-	// case rio_control_node::Robot_Status::AUTONOMOUS:
-	// {
-    //     if(traj_follow_cue.traj_follow_active)
-    //     {
-    //         double angular_velocity = traj_follow_cue.velocity.angular.z;
-    //         double temp = angular_velocity * robot_track_width_inches * INCHES_TO_METERS;
-
-    //         double average_velocity = traj_follow_cue.velocity.linear.x;
-    //         double left_velocity = average_velocity - (temp / 2.0);
-    //         double right_velocity = average_velocity + (temp / 2.0);
-
-    //         double left_rpm = left_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-    //         double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-
-    //         leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-    //                               drive_Kv * left_rpm,
-    //                               0 );
-
-    //         rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-    //                                drive_Kv * right_rpm,
-    //                                0 );
-    //     }
-    //     else
-    //     {
-
-    //         leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
-    //         rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
-    //     }
-	// }
-    // break;
-	case rio_control_node::Robot_Status::TELEOP:
 	case rio_control_node::Robot_Status::AUTONOMOUS:
+	{
+        if(traj_follow_cue.traj_follow_active)
+        {
+            double angular_velocity = traj_follow_cue.velocity.angular.z;
+            double angular_accel = traj_follow_cue.acceleration.angular.z;
+            double tempVel = angular_velocity * robot_track_width_inches * INCHES_TO_METERS;
+            double tempAccel = angular_accel * robot_track_width_inches * INCHES_TO_METERS;
+
+            double average_velocity = traj_follow_cue.velocity.linear.x;
+			double average_accel = traj_follow_cue.acceleration.linear.x;
+            double left_velocity = average_velocity - (tempVel / 2.0);
+            double right_velocity = average_velocity + (tempVel / 2.0);
+			double left_accel = average_accel - (tempAccel / 2.0);
+            double right_accel = average_accel + (tempAccel / 2.0);
+
+			drivetrain_diagnostics.targetVelocityLeft = left_velocity;
+			drivetrain_diagnostics.targetVelocityRight = right_velocity;
+			drivetrain_diagnostics.targetAccelLeft = left_accel;
+			drivetrain_diagnostics.targetAccelRight = right_accel;
+
+            double left_rpm = left_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
+            double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
+			double left_accel_rpm = left_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
+			double right_accel_rpm = right_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
+
+            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                  drive_Kv * left_rpm + left_accel_rpm * drive_Ka,
+                                  0 );
+
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+                                   drive_Kv * right_rpm + right_accel_rpm * drive_Ka,
+                                   0 );
+        }
+        else
+        {
+
+            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
+        }
+	}
+    break;
+	case rio_control_node::Robot_Status::TELEOP:
 	{
 		float shoot_multiplier = 1.0;
 		if(about_to_shoot)

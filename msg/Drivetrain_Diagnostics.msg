@@ -2,3 +2,11 @@ float64 rawLeftMotorOutput
 float64 rawRightMotorOutput
 float64 rampedLeftMotorOutput
 float64 rampedRightMotorOutput
+float64 targetVelocityLeft
+float64 targetVelocityRight
+float64 actualVelocityLeft
+float64 actualVelocityRight
+float64 targetAccelLeft
+float64 targetAccelRight
+float64 actualAccelLeft
+float64 actualAccelRight
