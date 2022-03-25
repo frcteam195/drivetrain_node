@@ -64,7 +64,14 @@ ValueRamper* mRightValueRamper;
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
 #ifdef DYNAMIC_RECONFIGURE_TUNING
-static bool tuning_velocity = false;
+enum class DriveTuningMode : int
+{
+	Normal = 0,
+	TuningVelocityPID = 1,
+	TuningkVkA = 2
+};
+
+static DriveTuningMode tuning_control_mode = DriveTuningMode::Normal;
 static double tuning_velocity_target = 0;
 void tuning_config_callback(drivetrain_node::DriveTuningConfig &config, uint32_t level)
 {
@@ -85,8 +92,10 @@ void tuning_config_callback(drivetrain_node::DriveTuningConfig &config, uint32_t
 	rightMasterMotor->config().set_max_i_accum(config.drive_maxIAccum);
 	rightMasterMotor->config().set_closed_loop_ramp(config.drive_closed_loop_ramp);
 
-	tuning_velocity = config.drive_tuning_enabled;
+	tuning_control_mode = (DriveTuningMode)config.drive_control_mode;
 	tuning_velocity_target = config.drive_tuning_velocity_target;
+	drive_Kv = config.drive_kV;
+	drive_Ka = config.drive_kA;
 }
 #endif
 
@@ -262,13 +271,15 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 			double right_accel_rpm = right_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
 			(void)left_accel_rpm;
 			(void)right_accel_rpm;
-            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                  drive_Kv * left_rpm, //+ left_accel_rpm * drive_Ka,
-                                  0 );
+            leftMasterMotor->set( Motor::Control_Mode::VELOCITY,
+                                  left_rpm,
+                                  std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0) //+ left_accel_rpm * drive_Ka
+								  );
 
-            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                   drive_Kv * right_rpm, //+ right_accel_rpm * drive_Ka,
-                                   0 );
+            rightMasterMotor->set( Motor::Control_Mode::VELOCITY,
+                                  right_rpm,
+                                  std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0) //+ left_accel_rpm * drive_Ka
+								  );
 
 			drivetrain_diagnostics.rawLeftMotorOutput = drive_Kv * left_rpm;
 			drivetrain_diagnostics.rawRightMotorOutput = drive_Kv * right_rpm;
@@ -329,16 +340,30 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 #endif
 
 #ifdef DYNAMIC_RECONFIGURE_TUNING
-		if (tuning_velocity)
+		switch (tuning_control_mode)
 		{
-			drivetrain_diagnostics.tuningVelocityRPMTarget = tuning_velocity_target;
-			leftMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
-			rightMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
-		}
-		else
-		{
-			leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
-			rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
+			case DriveTuningMode::Normal:
+			{
+				leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
+				rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
+				break;
+			}
+			case DriveTuningMode::TuningVelocityPID:
+			{
+				drivetrain_diagnostics.tuningVelocityRPMTarget = tuning_velocity_target;
+				leftMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
+				rightMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
+				break;
+			}
+			case DriveTuningMode::TuningkVkA:
+			{
+				drivetrain_diagnostics.tuningVelocityRPMTarget = tuning_velocity_target;
+
+				//Start?? 0.001852534562
+				leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, (drive_Kv * tuning_velocity_target) / 12.0, 0 );
+				rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, (drive_Kv * tuning_velocity_target) /12.0, 0 );
+				break;
+			}
 		}
 #else
 
