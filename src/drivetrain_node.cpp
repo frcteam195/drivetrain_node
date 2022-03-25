@@ -202,10 +202,12 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	if (motor_map.count(left_master_id))
 	{
 		drivetrain_diagnostics.actualVelocityLeft = motor_map[left_master_id].sensor_velocity * (wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
+		drivetrain_diagnostics.leftRPMActual = motor_map[left_master_id].sensor_velocity;
 	}
 	if (motor_map.count(right_master_id))
 	{
 		drivetrain_diagnostics.actualVelocityRight = motor_map[right_master_id].sensor_velocity * (wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
+		drivetrain_diagnostics.rightRPMActual = motor_map[right_master_id].sensor_velocity;
 	}
 
 	if (prev_time != ros::Time(0) && dt != 0)
@@ -329,6 +331,7 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 #ifdef DYNAMIC_RECONFIGURE_TUNING
 		if (tuning_velocity)
 		{
+			drivetrain_diagnostics.tuningVelocityRPMTarget = tuning_velocity_target;
 			leftMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
 			rightMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
 		}
