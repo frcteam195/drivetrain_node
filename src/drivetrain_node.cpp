@@ -183,14 +183,23 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		{
 			shoot_multiplier = 0.0;
 		}
-		DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
-														   msg.drivetrain_left_right * shoot_multiplier,
-														   msg.drivetrain_quickturn,
-														   true );
-		drivetrain_diagnostics.rawLeftMotorOutput = dv.left;
-		drivetrain_diagnostics.rawRightMotorOutput = dv.right;
-		double left = mLeftValueRamper.calculateOutput(dv.left);
-		double right = mRightValueRamper.calculateOutput(dv.right);
+		// DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
+		// 												   msg.drivetrain_left_right * shoot_multiplier,
+		// 												   msg.drivetrain_quickturn,
+		// 												   true );
+		// drivetrain_diagnostics.rawLeftMotorOutput = dv.left;
+		// drivetrain_diagnostics.rawRightMotorOutput = dv.right;
+		// double left = mLeftValueRamper.calculateOutput(dv.left);
+		// double right = mRightValueRamper.calculateOutput(dv.right);
+		
+		double leftPre = std::max(std::min(msg.drivetrain_fwd_back + msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+		double rightPre = std::max(std::min(msg.drivetrain_fwd_back - msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+
+		drivetrain_diagnostics.rawLeftMotorOutput = leftPre;
+		drivetrain_diagnostics.rawRightMotorOutput = rightPre;
+		double left = mLeftValueRamper.calculateOutput(leftPre);
+		double right = mRightValueRamper.calculateOutput(rightPre);
+
 		drivetrain_diagnostics.rampedLeftMotorOutput = left;
 		drivetrain_diagnostics.rampedRightMotorOutput = right;
 
