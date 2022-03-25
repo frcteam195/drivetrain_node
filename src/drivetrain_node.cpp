@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 
 	if (!required_params_found)
 	{
-		ROS_ERROR("Missing required parameters. Please check the list and make sure all required parameters are included");
+		ROS_ERROR("Missing required parameters for node %s. Please check the list and make sure all required parameters are included", ros::this_node::getName().c_str());
 		return 1;
 	}
 
