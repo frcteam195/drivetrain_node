@@ -37,6 +37,7 @@ double velocity_kD;
 double velocity_kF;
 double velocity_iZone;
 double velocity_maxIAccum;
+double closed_loop_ramp;
 double motion_cruise_velocity;
 double motion_accel;
 double motion_s_curve_strength;

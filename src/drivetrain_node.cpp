@@ -30,6 +30,12 @@
 
 #define INCHES_TO_METERS 0.0254
 
+#define DYNAMIC_RECONFIGURE_TUNING
+#ifdef DYNAMIC_RECONFIGURE_TUNING
+#include <dynamic_reconfigure/server.h>
+#include <drivetrain_node/DriveTuningConfig.h>
+#endif
+
 ros::NodeHandle* node;
 static constexpr double ENCODER_TICKS_TO_M_S = 1.0;
 
@@ -50,6 +56,29 @@ ValueRamper* mLeftValueRamper;
 ValueRamper* mRightValueRamper;
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
+
+#ifdef DYNAMIC_RECONFIGURE_TUNING
+void tuning_config_callback(drivetrain_node::DriveTuningConfig &config, uint32_t level)
+{
+	(void) level;
+	leftMasterMotor->config().set_kP(config.drive_kP);
+	leftMasterMotor->config().set_kI(config.drive_kI);
+	leftMasterMotor->config().set_kD(config.drive_kD);
+	leftMasterMotor->config().set_kF(config.drive_kF);
+	leftMasterMotor->config().set_i_zone(config.drive_iZone);
+	leftMasterMotor->config().set_max_i_accum(config.drive_maxIAccum);
+	leftMasterMotor->config().set_closed_loop_ramp(config.drive_closed_loop_ramp);
+
+	rightMasterMotor->config().set_kP(config.drive_kP);
+	rightMasterMotor->config().set_kI(config.drive_kI);
+	rightMasterMotor->config().set_kD(config.drive_kD);
+	rightMasterMotor->config().set_kF(config.drive_kF);
+	rightMasterMotor->config().set_i_zone(config.drive_iZone);
+	rightMasterMotor->config().set_max_i_accum(config.drive_maxIAccum);
+	rightMasterMotor->config().set_closed_loop_ramp(config.drive_closed_loop_ramp);
+}
+#endif
+
 
 void robotStatusCallback(const rio_control_node::Robot_Status& msg)
 {
@@ -275,6 +304,13 @@ void initMotors()
     leftMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
 	leftMasterMotor->config().set_open_loop_ramp(open_loop_ramp);
 	leftMasterMotor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
+	leftMasterMotor->config().set_kP(velocity_kP);
+	leftMasterMotor->config().set_kI(velocity_kI);
+	leftMasterMotor->config().set_kD(velocity_kD);
+	leftMasterMotor->config().set_kF(velocity_kF);
+	leftMasterMotor->config().set_i_zone(velocity_iZone);
+	leftMasterMotor->config().set_max_i_accum(velocity_maxIAccum);
+	leftMasterMotor->config().set_closed_loop_ramp(closed_loop_ramp);
     leftMasterMotor->config().apply();
 
     rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
@@ -285,6 +321,13 @@ void initMotors()
     rightMasterMotor->config().set_voltage_compensation_enabled( voltage_comp_enabled );
 	rightMasterMotor->config().set_open_loop_ramp(open_loop_ramp);
 	rightMasterMotor->config().set_supply_current_limit(true, supply_current_limit, supply_current_limit_threshold, supply_current_limit_threshold_exceeded_time);
+	rightMasterMotor->config().set_kP(velocity_kP);
+	rightMasterMotor->config().set_kI(velocity_kI);
+	rightMasterMotor->config().set_kD(velocity_kD);
+	rightMasterMotor->config().set_kF(velocity_kF);
+	rightMasterMotor->config().set_i_zone(velocity_iZone);
+	rightMasterMotor->config().set_max_i_accum(velocity_maxIAccum);
+	rightMasterMotor->config().set_closed_loop_ramp(closed_loop_ramp);
     rightMasterMotor->config().apply();
 
     // followers
@@ -373,6 +416,7 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(velocity_kF), velocity_kF);
 	required_params_found &= n.getParam(CKSP(velocity_iZone), velocity_iZone);
 	required_params_found &= n.getParam(CKSP(velocity_maxIAccum), velocity_maxIAccum);
+	required_params_found &= n.getParam(CKSP(closed_loop_ramp), closed_loop_ramp);
 	required_params_found &= n.getParam(CKSP(motion_cruise_velocity), motion_cruise_velocity);
 	required_params_found &= n.getParam(CKSP(motion_accel), motion_accel);
 	required_params_found &= n.getParam(CKSP(motion_s_curve_strength), motion_s_curve_strength);
@@ -402,6 +446,13 @@ int main(int argc, char **argv)
 	ros::Subscriber turret_status_subscriber = node->subscribe("/TurretStatus", 1, turret_status_callback);
 
     initMotors();
+
+#ifdef DYNAMIC_RECONFIGURE_TUNING
+	dynamic_reconfigure::Server<drivetrain_node::DriveTuningConfig> server;
+	dynamic_reconfigure::Server<drivetrain_node::DriveTuningConfig>::CallbackType f;
+	f = boost::bind(&tuning_config_callback, _1, _2);
+	server.setCallback(f);
+#endif
 
 	ros::spin();
 	return 0;

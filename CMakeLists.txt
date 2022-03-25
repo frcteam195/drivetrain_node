@@ -10,7 +10,7 @@ project(${PROJECT_NAME})
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node turret_node local_planner_node ck_utilities_node hmi_agent_node)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node turret_node local_planner_node ck_utilities_node hmi_agent_node dynamic_reconfigure)
 
 add_message_files(
   FILES
@@ -21,6 +21,10 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+)
+
+generate_dynamic_reconfigure_options(
+  cfg/DriveTuning.cfg
 )
 
 catkin_package(
@@ -38,6 +42,7 @@ catkin_package(
   turret_node
   ck_utilities_node
   hmi_agent_node
+  dynamic_reconfigure
 )
 
 ###########
