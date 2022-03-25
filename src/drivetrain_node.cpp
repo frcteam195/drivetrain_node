@@ -64,6 +64,8 @@ ValueRamper* mRightValueRamper;
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
 #ifdef DYNAMIC_RECONFIGURE_TUNING
+static bool tuning_velocity = false;
+static double tuning_velocity_target = 0;
 void tuning_config_callback(drivetrain_node::DriveTuningConfig &config, uint32_t level)
 {
 	(void) level;
@@ -82,6 +84,9 @@ void tuning_config_callback(drivetrain_node::DriveTuningConfig &config, uint32_t
 	rightMasterMotor->config().set_i_zone(config.drive_iZone);
 	rightMasterMotor->config().set_max_i_accum(config.drive_maxIAccum);
 	rightMasterMotor->config().set_closed_loop_ramp(config.drive_closed_loop_ramp);
+
+	tuning_velocity = config.drive_tuning_enabled;
+	tuning_velocity_target = config.drive_tuning_velocity_target;
 }
 #endif
 
@@ -193,14 +198,14 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	ros::Time curr_time = ros::Time::now();
 	double dt = (curr_time - prev_time).toSec();
 
-	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+	// std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	if (motor_map.count(left_master_id))
 	{
-		drivetrain_diagnostics.actualVelocityLeft = motor_map[left_master_id].sensor_velocity;
+		drivetrain_diagnostics.actualVelocityLeft = motor_map[left_master_id].sensor_velocity * (wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
 	}
 	if (motor_map.count(right_master_id))
 	{
-		drivetrain_diagnostics.actualVelocityRight = motor_map[right_master_id].sensor_velocity;
+		drivetrain_diagnostics.actualVelocityRight = motor_map[right_master_id].sensor_velocity * (wheel_diameter_inches * M_PI * INCHES_TO_METERS) / 60.0;
 	}
 
 	if (prev_time != ros::Time(0) && dt != 0)
@@ -208,6 +213,12 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 		drivetrain_diagnostics.actualAccelLeft = (drivetrain_diagnostics.actualVelocityLeft - prevLeftVel) / dt;
 		drivetrain_diagnostics.actualAccelRight = (drivetrain_diagnostics.actualVelocityRight - prevRightVel) / dt;
 	}
+	else
+	{
+		drivetrain_diagnostics.actualAccelLeft = 0;
+		drivetrain_diagnostics.actualAccelRight = 0;
+	}
+	drivetrain_diagnostics.dt = dt;
 	
 	prevLeftVel = drivetrain_diagnostics.actualAccelLeft;
 	prevRightVel = drivetrain_diagnostics.actualAccelRight;
@@ -247,18 +258,27 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
             double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
 			double left_accel_rpm = left_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
 			double right_accel_rpm = right_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-
+			(void)left_accel_rpm;
+			(void)right_accel_rpm;
             leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                  drive_Kv * left_rpm + left_accel_rpm * drive_Ka,
+                                  drive_Kv * left_rpm, //+ left_accel_rpm * drive_Ka,
                                   0 );
 
             rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-                                   drive_Kv * right_rpm + right_accel_rpm * drive_Ka,
+                                   drive_Kv * right_rpm, //+ right_accel_rpm * drive_Ka,
                                    0 );
+
+			drivetrain_diagnostics.rawLeftMotorOutput = drive_Kv * left_rpm;
+			drivetrain_diagnostics.rawRightMotorOutput = drive_Kv * right_rpm;
         }
         else
         {
-
+			drivetrain_diagnostics.targetVelocityLeft = 0;
+			drivetrain_diagnostics.targetVelocityRight = 0;
+			drivetrain_diagnostics.targetAccelLeft = 0;
+			drivetrain_diagnostics.targetAccelRight = 0;
+			drivetrain_diagnostics.rawLeftMotorOutput = 0;
+			drivetrain_diagnostics.rawRightMotorOutput = 0;
             leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
             rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
         }
@@ -306,8 +326,22 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		}
 #endif
 
+#ifdef DYNAMIC_RECONFIGURE_TUNING
+		if (tuning_velocity)
+		{
+			leftMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
+			rightMasterMotor->set( Motor::Control_Mode::VELOCITY, tuning_velocity_target, 0 );
+		}
+		else
+		{
+			leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
+			rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
+		}
+#else
+
         leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, left, 0 );
 		rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, right, 0 );
+#endif
 	}
 	break;
 	default:
