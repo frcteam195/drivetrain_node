@@ -22,6 +22,7 @@
 #include <ck_utilities/CKMath.hpp>
 #include <ck_utilities/ParameterHelper.hpp>
 #include <ck_utilities/ValueRamper.hpp>
+#include <ck_utilities/MovingAverage.hpp>
 
 #include <hmi_agent_node/HMI_Signals.h>
 
@@ -29,14 +30,14 @@
 #include "drivetrain_node/Drivetrain_Diagnostics.h"
 
 
-#define CHARACTERIZE_DRIVE
+//#define CHARACTERIZE_DRIVE
 #ifdef CHARACTERIZE_DRIVE
 #include "drive_physics_characterizer_node/Drive_Characterization_Output.h"
 #endif
 
 #define INCHES_TO_METERS 0.0254
 
-#define DYNAMIC_RECONFIGURE_TUNING
+//#define DYNAMIC_RECONFIGURE_TUNING
 #ifdef DYNAMIC_RECONFIGURE_TUNING
 #include <dynamic_reconfigure/server.h>
 #include <drivetrain_node/DriveTuningConfig.h>
@@ -60,6 +61,8 @@ std::vector<Motor*> rightFollowersMotor;
 DriveHelper driveHelper;
 ValueRamper* mLeftValueRamper;
 ValueRamper* mRightValueRamper;
+ck::MovingAverage mTargetLinearVelocityFilter(1);
+ck::MovingAverage mTargetAngularVelocityFilter(1);
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 
@@ -248,18 +251,21 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 	{
         if(traj_follow_cue.traj_follow_active)
         {
-            double angular_velocity = traj_follow_cue.velocity.angular.z;
+			mTargetAngularVelocityFilter.addSample(traj_follow_cue.velocity.angular.z);
+			mTargetLinearVelocityFilter.addSample(traj_follow_cue.velocity.linear.x);
+            double angular_velocity = mTargetAngularVelocityFilter.getAverage();
             double angular_accel = traj_follow_cue.acceleration.angular.z;
             double tempVel = angular_velocity * robot_track_width_inches * INCHES_TO_METERS;
             double tempAccel = angular_accel * robot_track_width_inches * INCHES_TO_METERS;
 
-            double average_velocity = traj_follow_cue.velocity.linear.x;
+            double average_velocity = mTargetLinearVelocityFilter.getAverage();
 			double average_accel = traj_follow_cue.acceleration.linear.x;
-            double left_velocity = average_velocity - (tempVel / 2.0);
-            double right_velocity = average_velocity + (tempVel / 2.0);
+            double left_velocity = average_velocity - (tempVel / robot_scrub_factor / 2.0);
+            double right_velocity = average_velocity + (tempVel / robot_scrub_factor / 2.0);
 			double left_accel = average_accel - (tempAccel / 2.0);
             double right_accel = average_accel + (tempAccel / 2.0);
 
+			drivetrain_diagnostics.targetAngularVelocity = angular_velocity;
 			drivetrain_diagnostics.targetVelocityLeft = left_velocity;
 			drivetrain_diagnostics.targetVelocityRight = right_velocity;
 			drivetrain_diagnostics.targetAccelLeft = left_accel;
@@ -280,6 +286,18 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
                                   right_rpm,
                                   std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0) //+ left_accel_rpm * drive_Ka
 								  );
+			drivetrain_diagnostics.leftAppliedArbFF = std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0);
+			drivetrain_diagnostics.rightAppliedArbFF = std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0);
+
+            // leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+            //                       std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0),
+            //                       0 //+ left_accel_rpm * drive_Ka
+			// 					  );
+
+            // rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
+            //                       std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0),
+            //                       0 //+ left_accel_rpm * drive_Ka
+			// 					  );
 
 			drivetrain_diagnostics.rawLeftMotorOutput = drive_Kv * left_rpm;
 			drivetrain_diagnostics.rawRightMotorOutput = drive_Kv * right_rpm;
@@ -536,6 +554,7 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(robot_linear_inertia), robot_linear_inertia);
 	required_params_found &= n.getParam(CKSP(robot_angular_inertia), robot_angular_inertia);
 	required_params_found &= n.getParam(CKSP(robot_angular_drag), robot_angular_drag);
+	required_params_found &= n.getParam(CKSP(robot_scrub_factor), robot_scrub_factor);
 	required_params_found &= n.getParam(CKSP(drive_Ks_v_intercept), drive_Ks_v_intercept);
 	required_params_found &= n.getParam(CKSP(drive_Kv), drive_Kv);
 	required_params_found &= n.getParam(CKSP(drive_Ka), drive_Ka);

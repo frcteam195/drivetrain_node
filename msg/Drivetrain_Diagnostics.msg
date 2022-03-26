@@ -4,6 +4,7 @@ float64 rampedLeftMotorOutput
 float64 rampedRightMotorOutput
 float64 targetVelocityLeft
 float64 targetVelocityRight
+float64 targetAngularVelocity
 float64 actualVelocityLeft
 float64 actualVelocityRight
 float64 targetAccelLeft
@@ -14,3 +15,5 @@ float64 dt
 float64 tuningVelocityRPMTarget
 float64 leftRPMActual
 float64 rightRPMActual
+float64 leftAppliedArbFF
+float64 rightAppliedArbFF

@@ -26,6 +26,7 @@ double robot_track_width_inches;
 double robot_linear_inertia;
 double robot_angular_inertia;
 double robot_angular_drag;
+double robot_scrub_factor;
 
 double drive_Ks_v_intercept;
 double drive_Kv;
