@@ -16,7 +16,6 @@
 #include <rio_control_node/Motor_Control.h>
 #include <rio_control_node/Motor_Configuration.h>
 #include <turret_node/Turret_Status.h>
-#include <local_planner_node/TrajectoryFollowCue.h>
 #include <rio_control_node/Motor_Status.h>
 #include <ck_utilities/Motor.hpp>
 #include <ck_utilities/CKMath.hpp>
@@ -28,6 +27,7 @@
 
 #include "drive_helper.hpp"
 #include "drivetrain_node/Drivetrain_Diagnostics.h"
+#include <quesadilla_auto_node/Planner_Output.h>
 
 
 //#define CHARACTERIZE_DRIVE
@@ -51,7 +51,6 @@ float mJoystick1x;
 float mJoystick1y;
 std::mutex mThreadCtrlLock;
 uint32_t mConfigUpdateCounter;
-static local_planner_node::TrajectoryFollowCue traj_follow_cue;
 static bool about_to_shoot = false;
 
 Motor* leftMasterMotor;
@@ -65,6 +64,10 @@ ck::MovingAverage mTargetLinearVelocityFilter(1);
 ck::MovingAverage mTargetAngularVelocityFilter(1);
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
+quesadilla_auto_node::Planner_Output drive_planner_output_msg;
+
+static constexpr double kDriveGearReduction = (50.0 / 11.0) * (44.0 / 30.0);
+static constexpr double kDriveRotationsPerTick = 1.0 / 2048.0 * 1.0 / kDriveGearReduction;
 
 #ifdef DYNAMIC_RECONFIGURE_TUNING
 enum class DriveTuningMode : int
@@ -127,10 +130,10 @@ void turret_status_callback(const turret_node::Turret_Status& msg)
 	about_to_shoot = msg.about_to_shoot;
 }
 
-void trajectoryCueCallback(const local_planner_node::TrajectoryFollowCue& msg)
+void planner_callback(const quesadilla_auto_node::Planner_Output& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
-    traj_follow_cue = msg;
+	drive_planner_output_msg = msg;
 }
 
 void publishOdometryData(const rio_control_node::Motor_Status& msg)
@@ -249,70 +252,36 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 	{
 	case rio_control_node::Robot_Status::AUTONOMOUS:
 	{
-        if(traj_follow_cue.traj_follow_active)
-        {
-			mTargetAngularVelocityFilter.addSample(traj_follow_cue.velocity.angular.z);
-			mTargetLinearVelocityFilter.addSample(traj_follow_cue.velocity.linear.x);
-            double angular_velocity = mTargetAngularVelocityFilter.getAverage();
-            double angular_accel = traj_follow_cue.acceleration.angular.z;
-            double tempVel = angular_velocity * robot_track_width_inches * INCHES_TO_METERS;
-            double tempAccel = angular_accel * robot_track_width_inches * INCHES_TO_METERS;
+		double left_rps = drive_planner_output_msg.left_motor_output_rad_per_sec;
+		double left_ff_voltage = drive_planner_output_msg.left_motor_feedforward_voltage;
+		double left_accel_rps2 = drive_planner_output_msg.left_motor_accel_rad_per_sec2;
 
-            double average_velocity = mTargetLinearVelocityFilter.getAverage();
-			double average_accel = traj_follow_cue.acceleration.linear.x;
-            double left_velocity = average_velocity - (tempVel / robot_scrub_factor / 2.0);
-            double right_velocity = average_velocity + (tempVel / robot_scrub_factor / 2.0);
-			double left_accel = average_accel - (tempAccel / 2.0);
-            double right_accel = average_accel + (tempAccel / 2.0);
+		drivetrain_diagnostics.targetVelocityLeft = left_rps;
+		drivetrain_diagnostics.targetAccelLeft = left_accel_rps2;
 
-			drivetrain_diagnostics.targetAngularVelocity = angular_velocity;
-			drivetrain_diagnostics.targetVelocityLeft = left_velocity;
-			drivetrain_diagnostics.targetVelocityRight = right_velocity;
-			drivetrain_diagnostics.targetAccelLeft = left_accel;
-			drivetrain_diagnostics.targetAccelRight = right_accel;
+		double right_rps = drive_planner_output_msg.right_motor_output_rad_per_sec;
+		double right_ff_voltage = drive_planner_output_msg.right_motor_feedforward_voltage;
+		double right_accel_rps2 = drive_planner_output_msg.right_motor_accel_rad_per_sec2;
 
-            double left_rpm = left_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-            double right_rpm = right_velocity / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-			double left_accel_rpm = left_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-			double right_accel_rpm = right_accel / (wheel_diameter_inches * M_PI * INCHES_TO_METERS) * 60.0;
-			(void)left_accel_rpm;
-			(void)right_accel_rpm;
-            leftMasterMotor->set( Motor::Control_Mode::VELOCITY,
-                                  left_rpm,
-                                  std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0) //+ left_accel_rpm * drive_Ka
-								  );
+		drivetrain_diagnostics.targetVelocityRight = right_rps;
+		drivetrain_diagnostics.targetAccelRight = right_accel_rps2;
 
-            rightMasterMotor->set( Motor::Control_Mode::VELOCITY,
-                                  right_rpm,
-                                  std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0) //+ left_accel_rpm * drive_Ka
-								  );
-			drivetrain_diagnostics.leftAppliedArbFF = std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0);
-			drivetrain_diagnostics.rightAppliedArbFF = std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0);
+		double left_accel_out = ck::math::radians_per_second_to_ticks_per_100ms(left_accel_rps2, kDriveRotationsPerTick) / 1000.0;
+		double right_accel_out = ck::math::radians_per_second_to_ticks_per_100ms(right_accel_rps2, kDriveRotationsPerTick) / 1000.0;
 
-            // leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-            //                       std::min(std::max((drive_Kv * left_rpm) / 12.0, -1.0), 1.0),
-            //                       0 //+ left_accel_rpm * drive_Ka
-			// 					  );
+		leftMasterMotor->set( Motor::Control_Mode::VELOCITY,
+								ck::math::rads_per_sec_to_rpm(left_rps),
+								left_ff_voltage / 12.0 + velocity_kD * left_accel_out / 1023.0
+								);
 
-            // rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT,
-            //                       std::min(std::max((drive_Kv * right_rpm) / 12.0, -1.0), 1.0),
-            //                       0 //+ left_accel_rpm * drive_Ka
-			// 					  );
-
-			drivetrain_diagnostics.rawLeftMotorOutput = drive_Kv * left_rpm;
-			drivetrain_diagnostics.rawRightMotorOutput = drive_Kv * right_rpm;
-        }
-        else
-        {
-			drivetrain_diagnostics.targetVelocityLeft = 0;
-			drivetrain_diagnostics.targetVelocityRight = 0;
-			drivetrain_diagnostics.targetAccelLeft = 0;
-			drivetrain_diagnostics.targetAccelRight = 0;
-			drivetrain_diagnostics.rawLeftMotorOutput = 0;
-			drivetrain_diagnostics.rawRightMotorOutput = 0;
-            leftMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
-            rightMasterMotor->set( Motor::Control_Mode::PERCENT_OUTPUT, 0, 0 );
-        }
+		rightMasterMotor->set( Motor::Control_Mode::VELOCITY,
+								ck::math::rads_per_sec_to_rpm(right_rps),
+								right_ff_voltage / 12.0 + velocity_kD * right_accel_out / 1023.0
+								);
+		drivetrain_diagnostics.leftAppliedArbFF = left_ff_voltage / 12.0 + velocity_kD * left_accel_out / 1023.0;
+		drivetrain_diagnostics.rightAppliedArbFF = right_ff_voltage / 12.0 + velocity_kD * right_accel_out / 1023.0;
+		drivetrain_diagnostics.rawLeftMotorOutput = ck::math::rads_per_sec_to_rpm(left_rps);
+		drivetrain_diagnostics.rawRightMotorOutput = ck::math::rads_per_sec_to_rpm(right_rps);
 	}
     break;
 	case rio_control_node::Robot_Status::TELEOP:
@@ -590,7 +559,7 @@ int main(int argc, char **argv)
 	ros::Subscriber joystickStatus = node->subscribe("/HMISignals", 1, hmiSignalsCallback);
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 1, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 1, robotStatusCallback);
-	ros::Subscriber trajectoryCue = node->subscribe("/active_trajectory", 1, trajectoryCueCallback);
+	ros::Subscriber planner_sub = node->subscribe("/QuesadillaPlannerOutput", 1, planner_callback);
 	ros::Subscriber turret_status_subscriber = node->subscribe("/TurretStatus", 1, turret_status_callback);
 #ifdef CHARACTERIZE_DRIVE
 	ros::Subscriber drive_characterization_subscriber = node->subscribe("/DriveCharacterizationOutput", 1, drive_characterization_callback);
