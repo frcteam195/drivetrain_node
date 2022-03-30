@@ -69,6 +69,17 @@ quesadilla_auto_node::Planner_Output drive_planner_output_msg;
 static constexpr double kDriveGearReduction = (50.0 / 11.0) * (44.0 / 30.0);
 static constexpr double kDriveRotationsPerTick = 1.0 / 2048.0 * 1.0 / kDriveGearReduction;
 
+enum class DriveControlMode : int
+{
+	OPEN_LOOP_ARCADE = 0,
+	OPEN_LOOP_CHEESY_DRIVE = 1,
+	OPEN_LOOP_TODD_CURVATURE_DRIVE = 2,
+	VELOCITY_ARCADE_DRIVE = 3,
+	VELOCITY_CURVATURE_DRIVE = 4
+};
+
+static DriveControlMode drive_control_config {DriveControlMode::OPEN_LOOP_ARCADE};
+
 #ifdef DYNAMIC_RECONFIGURE_TUNING
 enum class DriveTuningMode : int
 {
@@ -295,19 +306,33 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		double leftPre = 0;
 		double rightPre = 0;
 
-		if (curvature_drive)
+		switch (drive_control_config)
 		{
-			DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
-															msg.drivetrain_left_right * shoot_multiplier,
-															msg.drivetrain_quickturn,
-															true );
-			leftPre = dv.left;
-			rightPre = dv.right;
-		}
-		else
-		{
-			leftPre = std::max(std::min(msg.drivetrain_fwd_back + msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
-			rightPre = std::max(std::min(msg.drivetrain_fwd_back - msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+			case DriveControlMode::OPEN_LOOP_CHEESY_DRIVE:
+			{
+				DriveMotorValues dv = driveHelper.calculateOutput( msg.drivetrain_fwd_back * shoot_multiplier,
+																msg.drivetrain_left_right * shoot_multiplier,
+																msg.drivetrain_quickturn,
+																true );
+				leftPre = dv.left;
+				rightPre = dv.right;
+				break;
+			}
+			case DriveControlMode::OPEN_LOOP_ARCADE:
+			{
+				leftPre = std::max(std::min(msg.drivetrain_fwd_back + msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+				rightPre = std::max(std::min(msg.drivetrain_fwd_back - msg.drivetrain_left_right, 1.0), -1.0) * shoot_multiplier;
+				break;
+			}
+			case DriveControlMode::OPEN_LOOP_TODD_CURVATURE_DRIVE:
+			case DriveControlMode::VELOCITY_ARCADE_DRIVE:
+			case DriveControlMode::VELOCITY_CURVATURE_DRIVE:
+			{
+				//Not Implemented
+				leftPre = 0;
+				rightPre = 0;
+				break;
+			}
 		}
 		
 		drivetrain_diagnostics.rawLeftMotorOutput = leftPre;
@@ -545,13 +570,15 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(joystick_input_ramp_decel), joystick_input_ramp_decel);
 	required_params_found &= n.getParam(CKSP(joystick_input_ramp_zero_val), joystick_input_ramp_zero_val);
 	required_params_found &= n.getParam(CKSP(joystick_input_ramp_max_val), joystick_input_ramp_max_val);
-	required_params_found &= n.getParam(CKSP(curvature_drive), curvature_drive);
+	required_params_found &= n.getParam(CKSP(drive_control_mode), drive_control_mode);
 
 	if (!required_params_found)
 	{
 		ROS_ERROR("Missing required parameters for node %s. Please check the list and make sure all required parameters are included", ros::this_node::getName().c_str());
 		return 1;
 	}
+
+	drive_control_config = (DriveControlMode)drive_control_mode;
 
 	mLeftValueRamper = new ValueRamper(joystick_input_ramp_accel, joystick_input_ramp_decel, joystick_input_ramp_zero_val, joystick_input_ramp_max_val);
 	mRightValueRamper = new ValueRamper(joystick_input_ramp_accel, joystick_input_ramp_decel, joystick_input_ramp_zero_val, joystick_input_ramp_max_val);

@@ -53,4 +53,4 @@ double joystick_input_ramp_decel;
 double joystick_input_ramp_zero_val;
 double joystick_input_ramp_max_val;
 
-bool curvature_drive;
+int drive_control_mode;
