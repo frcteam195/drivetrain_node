@@ -280,14 +280,24 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		double left_accel_out = ck::math::radians_per_second_to_ticks_per_100ms(left_accel_rps2, kDriveRotationsPerTick) / 1000.0;
 		double right_accel_out = ck::math::radians_per_second_to_ticks_per_100ms(right_accel_rps2, kDriveRotationsPerTick) / 1000.0;
 
+		// leftMasterMotor->set( Motor::Control_Mode::VELOCITY,
+		// 						ck::math::rads_per_sec_to_rpm(left_rps),
+		// 						left_ff_voltage / 12.0 + velocity_kD * left_accel_out / 1023.0
+		// 						);
+
+		// rightMasterMotor->set( Motor::Control_Mode::VELOCITY,
+		// 						ck::math::rads_per_sec_to_rpm(right_rps),
+		// 						right_ff_voltage / 12.0 + velocity_kD * right_accel_out / 1023.0
+		// 						);
+
 		leftMasterMotor->set( Motor::Control_Mode::VELOCITY,
 								ck::math::rads_per_sec_to_rpm(left_rps),
-								left_ff_voltage / 12.0 + velocity_kD * left_accel_out / 1023.0
+								0
 								);
 
 		rightMasterMotor->set( Motor::Control_Mode::VELOCITY,
 								ck::math::rads_per_sec_to_rpm(right_rps),
-								right_ff_voltage / 12.0 + velocity_kD * right_accel_out / 1023.0
+								0
 								);
 		drivetrain_diagnostics.leftAppliedArbFF = left_ff_voltage / 12.0 + velocity_kD * left_accel_out / 1023.0;
 		drivetrain_diagnostics.rightAppliedArbFF = right_ff_voltage / 12.0 + velocity_kD * right_accel_out / 1023.0;
