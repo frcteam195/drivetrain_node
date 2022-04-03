@@ -311,6 +311,7 @@ void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
 		if(about_to_shoot)
 		{
 			shoot_multiplier = 0.0;
+			brake_mode = true;
 		}
 
 		double leftPre = 0;
