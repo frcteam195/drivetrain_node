@@ -137,8 +137,12 @@ void drive_characterization_callback(const drive_physics_characterizer_node::Dri
 }
 #endif
 
+geometry_msgs::Twist get_twist_from_input(double throttle_x, double throttle_y, double throttle_z)
+{
 
-SwerveDriveOutput calculate_swerve_output(double throttle_x, double throttle_y, double throttle_z)
+}
+
+SwerveDriveOutput calculate_swerve_output_from_twist(geometry_msgs::Twist twist)
 {
 	static SwerveDriveOutput sdo;
 	memset(&sdo, 0, sizeof(SwerveDriveOutput));
@@ -146,9 +150,7 @@ SwerveDriveOutput calculate_swerve_output(double throttle_x, double throttle_y, 
 	(void)robot_track_width_inches;
 	(void)robot_track_length_inches;
 
-	(void) throttle_x;
-	(void) throttle_y;
-	(void) throttle_z;
+	(void) twist;
 
 	return sdo;
 }
