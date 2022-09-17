@@ -23,6 +23,7 @@ bool brake_mode_default;
 double gear_ratio_motor_to_output_shaft;
 double wheel_diameter_inches;
 double robot_track_width_inches;
+double robot_track_length_inches;
 double robot_linear_inertia;
 double robot_angular_inertia;
 double robot_angular_drag;

@@ -22,6 +22,7 @@
 #include <ck_utilities/ParameterHelper.hpp>
 #include <ck_utilities/ValueRamper.hpp>
 #include <ck_utilities/MovingAverage.hpp>
+#include <ck_utilities/SwerveDriveOutput.hpp>
 
 #include <hmi_agent_node/HMI_Signals.h>
 
@@ -135,6 +136,22 @@ void drive_characterization_callback(const drive_physics_characterizer_node::Dri
 	characterizing_drive_right_output = msg.right_drive_output;
 }
 #endif
+
+
+SwerveDriveOutput calculate_swerve_output(double throttle_x, double throttle_y, double throttle_z)
+{
+	static SwerveDriveOutput sdo;
+	memset(&sdo, 0, sizeof(SwerveDriveOutput));
+
+	(void)robot_track_width_inches;
+	(void)robot_track_length_inches;
+
+	(void) throttle_x;
+	(void) throttle_y;
+	(void) throttle_z;
+
+	return sdo;
+}
 
 void turret_status_callback(const turret_node::Turret_Status& msg)
 {
@@ -556,6 +573,7 @@ int main(int argc, char **argv)
 	required_params_found &= n.getParam(CKSP(gear_ratio_motor_to_output_shaft), gear_ratio_motor_to_output_shaft);
 	required_params_found &= n.getParam(CKSP(wheel_diameter_inches), wheel_diameter_inches);
 	required_params_found &= n.getParam(CKSP(robot_track_width_inches), robot_track_width_inches);
+	required_params_found &= n.getParam(CKSP(robot_track_length_inches), robot_track_length_inches);
 	required_params_found &= n.getParam(CKSP(robot_linear_inertia), robot_linear_inertia);
 	required_params_found &= n.getParam(CKSP(robot_angular_inertia), robot_angular_inertia);
 	required_params_found &= n.getParam(CKSP(robot_angular_drag), robot_angular_drag);
