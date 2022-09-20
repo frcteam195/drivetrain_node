@@ -139,7 +139,12 @@ void drive_characterization_callback(const drive_physics_characterizer_node::Dri
 
 geometry_msgs::Twist get_twist_from_input(double throttle_x, double throttle_y, double throttle_z)
 {
-
+	(void) throttle_x;
+	(void) throttle_y;
+	(void) throttle_z;
+	
+	geometry_msgs::Twist return_twist;
+	return return_twist;
 }
 
 SwerveDriveOutput calculate_swerve_output_from_twist(geometry_msgs::Twist twist)
