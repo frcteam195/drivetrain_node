@@ -5,7 +5,7 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-
+#include "ck_utilities/CKMath.hpp"
 #include <vector>
 
 DriveMotorValues DriveHelper::calculateOutput(double throttle, double wheel, bool isQuickTurn, bool isHighGear)
@@ -166,18 +166,10 @@ geometry_msgs::Pose apply_transform(geometry_msgs::Pose initial_pose, geometry_m
     return result;
 }
 
-double normalize_to_2_pi(double value)
-{
-    value = fmod(value, 360.0);
-    if (value < 0.0)
-        value += 360.0;
-    return value;
-}
-
 double smallest_traversal(double angle, double target_angle)
 {
-    double left = -normalize_to_2_pi(angle - target_angle);
-    double right = normalize_to_2_pi(target_angle - angle);
+    double left = -ck::math::normalize_to_2_pi(angle - target_angle);
+    double right = ck::math::normalize_to_2_pi(target_angle - angle);
     if(fabs(left) < fabs(right))
     {
         return left;
@@ -218,8 +210,8 @@ std::vector<std::pair<geometry_msgs::Pose, geometry_msgs::Twist>> calculate_swer
         (void) initial_pitch;
         tf2::Matrix3x3(wheel_initial_quaternion).getRPY(initial_roll, initial_pitch, initial_yaw);
 
-        initial_yaw = normalize_to_2_pi(initial_yaw);
-        double mirrored_initial_yaw = normalize_to_2_pi(initial_yaw + M_PI);
+        initial_yaw = ck::math::normalize_to_2_pi(initial_yaw);
+        double mirrored_initial_yaw = ck::math::normalize_to_2_pi(initial_yaw + M_PI);
 
         double normal_smallest_traversal = smallest_traversal(initial_yaw, wheel_end_yaw);
         double mirror_smallest_traversal = smallest_traversal(mirrored_initial_yaw, wheel_end_yaw);
