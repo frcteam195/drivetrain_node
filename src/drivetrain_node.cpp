@@ -22,7 +22,6 @@
 #include <ck_utilities/ParameterHelper.hpp>
 #include <ck_utilities/ValueRamper.hpp>
 #include <ck_utilities/MovingAverage.hpp>
-#include <ck_utilities/SwerveDriveOutput.hpp>
 
 #include <hmi_agent_node/HMI_Signals.h>
 
@@ -136,29 +135,6 @@ void drive_characterization_callback(const drive_physics_characterizer_node::Dri
 	characterizing_drive_right_output = msg.right_drive_output;
 }
 #endif
-
-geometry_msgs::Twist get_twist_from_input(double throttle_x, double throttle_y, double throttle_z)
-{
-	(void) throttle_x;
-	(void) throttle_y;
-	(void) throttle_z;
-	
-	geometry_msgs::Twist return_twist;
-	return return_twist;
-}
-
-SwerveDriveOutput calculate_swerve_output_from_twist(geometry_msgs::Twist twist)
-{
-	static SwerveDriveOutput sdo;
-	memset(&sdo, 0, sizeof(SwerveDriveOutput));
-
-	(void)robot_track_width_inches;
-	(void)robot_track_length_inches;
-
-	(void) twist;
-
-	return sdo;
-}
 
 void turret_status_callback(const turret_node::Turret_Status& msg)
 {
