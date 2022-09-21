@@ -185,15 +185,12 @@ double smallest_traversal(double angle, double target_angle)
     return right;
 }
 
-std::vector<geometry_msgs::Twist> calculate_swerve_outputs
+std::vector<std::pair<geometry_msgs::Pose, geometry_msgs::Twist>> calculate_swerve_outputs
     (geometry_msgs::Twist desired_twist,
     std::vector<geometry_msgs::Transform> wheel_transforms,
     double projection_time_s)
 {
-    (void) wheel_transforms;
-    (void) projection_time_s;
-
-    std::vector<geometry_msgs::Twist> results;
+    std::vector<std::pair<geometry_msgs::Pose, geometry_msgs::Twist>> results;
 
     geometry_msgs::Pose robot_initial_pose = null_pose();
     geometry_msgs::Pose robot_projected_pose = apply_twist(robot_initial_pose, desired_twist, projection_time_s);
@@ -230,27 +227,34 @@ std::vector<geometry_msgs::Twist> calculate_swerve_outputs
 
         double smallest_overall_traversal = std::fabs(normal_smallest_traversal) < std::fabs(mirror_smallest_traversal) ? normal_smallest_traversal : mirror_smallest_traversal;
         
-        geometry_msgs::Twist wheel_twist;
-        wheel_twist.linear.x = wheel_projected_pose.position.x;
-        wheel_twist.linear.y = wheel_projected_pose.position.y;
-        wheel_twist.linear.z = wheel_projected_pose.position.z;
-        wheel_twist.angular.x = 0;
-        wheel_twist.angular.y = 0;
-        wheel_twist.angular.z = smallest_overall_traversal;
+        tf2::Quaternion smallest_traversal_pose;
+        smallest_traversal_pose.setRPY(0, 0, smallest_overall_traversal);
 
-        results.push_back(wheel_twist);
+        std::pair<geometry_msgs::Pose, geometry_msgs::Twist> wheel_result;
+        wheel_result.first.position = wheel_projected_pose.position;
+        wheel_result.first.orientation = toMsg(smallest_traversal_pose);
+        wheel_result.second.linear.x = wheel_projected_pose.position.x / projection_time_s;
+        wheel_result.second.linear.y = wheel_projected_pose.position.y / projection_time_s;
+        wheel_result.second.linear.z = wheel_projected_pose.position.z / projection_time_s;
+        wheel_result.second.angular.x = 0;
+        wheel_result.second.angular.y = 0;
+        wheel_result.second.angular.z = smallest_overall_traversal / projection_time_s;
+
+        results.push_back(wheel_result);
     }
 
-    for(std::vector<geometry_msgs::Twist>::iterator i = results.begin();
+    for(std::vector<std::pair<geometry_msgs::Pose, geometry_msgs::Twist>>::iterator i = results.begin();
         i != results.end();
         i++)
     {
-        double hypot = std::sqrt((*i).linear.x * (*i).linear.x +
-                                 (*i).linear.y * (*i).linear.y);
+        double hypot = std::sqrt((*i).first.position.x * (*i).first.position.x +
+                                 (*i).first.position.y * (*i).first.position.y);
 
         double ratio = hypot / largest_hypot;
-        (*i).linear.x *= ratio;
-        (*i).linear.y *= ratio;
+        (*i).first.position.x *= ratio;
+        (*i).first.position.y *= ratio;
+        (*i).second.linear.x *= ratio;
+        (*i).second.linear.y *= ratio;
     }
 
     return results;
