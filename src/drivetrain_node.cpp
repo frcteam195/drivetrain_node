@@ -23,7 +23,7 @@
 #include <ck_utilities/ValueRamper.hpp>
 #include <ck_utilities/MovingAverage.hpp>
 
-#include <hmi_agent_node/HMI_Signals.h>
+#include <ck_ros_msgs_node/HMI_Signals.h>
 
 #include "drive_helper.hpp"
 #include "drivetrain_node/Drivetrain_Diagnostics.h"
@@ -253,7 +253,7 @@ void motorStatusCallback(const rio_control_node::Motor_Status& msg)
 	prev_time = curr_time;
 }
 
-void hmiSignalsCallback(const hmi_agent_node::HMI_Signals& msg)
+void hmiSignalsCallback(const ck_ros_msgs_node::HMI_Signals& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	

@@ -10,7 +10,7 @@ project(${PROJECT_NAME})
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node turret_node local_planner_node ck_utilities_node hmi_agent_node dynamic_reconfigure quesadilla_auto_node)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation rio_control_node turret_node ck_utilities_node hmi_agent_node dynamic_reconfigure quesadilla_auto_node)
 
 add_message_files(
   FILES
@@ -38,7 +38,6 @@ catkin_package(
   message_runtime
   rio_control_node
   nav_msgs
-  local_planner_node
   turret_node
   ck_utilities_node
   hmi_agent_node
