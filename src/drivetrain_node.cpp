@@ -28,6 +28,7 @@
 #include "drive_helper.hpp"
 #include "drivetrain_node/Drivetrain_Diagnostics.h"
 #include <quesadilla_auto_node/Planner_Output.h>
+#include <trajectory_follower_node/FollowerStatus.h>
 
 
 //#define CHARACTERIZE_DRIVE
@@ -65,6 +66,7 @@ ck::MovingAverage mTargetAngularVelocityFilter(1);
 
 drivetrain_node::Drivetrain_Diagnostics drivetrain_diagnostics;
 quesadilla_auto_node::Planner_Output drive_planner_output_msg;
+trajectory_follower_node::FollowerStatus traj_follower_status_msg;
 
 static constexpr double kDriveGearReduction = (50.0 / 11.0) * (44.0 / 30.0);
 static constexpr double kDriveRotationsPerTick = 1.0 / 2048.0 * 1.0 / kDriveGearReduction;
@@ -145,6 +147,12 @@ void planner_callback(const quesadilla_auto_node::Planner_Output& msg)
 {
 	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
 	drive_planner_output_msg = msg;
+}
+
+void traj_follower_callback(const trajectory_follower_node::FollowerStatus& msg)
+{
+	std::lock_guard<std::mutex> lock(mThreadCtrlLock);
+	traj_follower_status_msg = msg;
 }
 
 void publishOdometryData(const rio_control_node::Motor_Status& msg)
@@ -267,12 +275,20 @@ void hmiSignalsCallback(const ck_ros_msgs_node::HMI_Signals& msg)
 		double left_ff_voltage = drive_planner_output_msg.left_motor_feedforward_voltage;
 		double left_accel_rps2 = drive_planner_output_msg.left_motor_accel_rad_per_sec2;
 
+		// left_rps = traj_follower_status_msg.leftMotorOutputRadPerSec;
+		// left_ff_voltage = traj_follower_status_msg.leftMotorFeedforwardVoltage;
+		// left_accel_rps2 = traj_follower_status_msg.leftMotorAccelRadPerSec2;
+
 		drivetrain_diagnostics.targetVelocityLeft = left_rps;
 		drivetrain_diagnostics.targetAccelLeft = left_accel_rps2;
 
 		double right_rps = drive_planner_output_msg.right_motor_output_rad_per_sec;
 		double right_ff_voltage = drive_planner_output_msg.right_motor_feedforward_voltage;
 		double right_accel_rps2 = drive_planner_output_msg.right_motor_accel_rad_per_sec2;
+
+		// right_rps = traj_follower_status_msg.rightMotorOutputRadPerSec;
+		// right_ff_voltage = traj_follower_status_msg.rightMotorFeedforwardVoltage;
+		// right_accel_rps2 = traj_follower_status_msg.rightMotorAccelRadPerSec2;
 
 		drivetrain_diagnostics.targetVelocityRight = right_rps;
 		drivetrain_diagnostics.targetAccelRight = right_accel_rps2;
@@ -599,6 +615,7 @@ int main(int argc, char **argv)
 	ros::Subscriber motorStatus = node->subscribe("MotorStatus", 1, motorStatusCallback);
 	ros::Subscriber robotStatus = node->subscribe("RobotStatus", 1, robotStatusCallback);
 	ros::Subscriber planner_sub = node->subscribe("/QuesadillaPlannerOutput", 1, planner_callback);
+	ros::Subscriber traj_follower_sub = node->subscribe("/TrajcetoryFollowerStatus", 1, traj_follower_callback);
 	ros::Subscriber turret_status_subscriber = node->subscribe("/TurretStatus", 1, turret_status_callback);
 #ifdef CHARACTERIZE_DRIVE
 	ros::Subscriber drive_characterization_subscriber = node->subscribe("/DriveCharacterizationOutput", 1, drive_characterization_callback);
